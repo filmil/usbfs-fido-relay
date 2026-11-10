@@ -55,6 +55,11 @@
   frame=single,
   rulecolor=\color{framegray},
   framesep=3pt,
+  % Caption below, as IEEE sets figure captions. IEEEtran's \@makecaption
+  % adds space only above a caption and ignores belowcaptionskip, so a
+  % caption on top sits flush on the listing, and the frame (drawn
+  % framesep outside the code) covers the caption's descenders.
+  captionpos=b,
   backgroundcolor=\color{bgshade},
   columns=fullflexible,
   keepspaces=true,
@@ -70,6 +75,11 @@
   frame=single,
   rulecolor=\color{framegray},
   framesep=3pt,
+  % Caption below, as IEEE sets figure captions. IEEEtran's \@makecaption
+  % adds space only above a caption and ignores belowcaptionskip, so a
+  % caption on top sits flush on the listing, and the frame (drawn
+  % framesep outside the code) covers the caption's descenders.
+  captionpos=b,
   backgroundcolor=\color{bgshade},
   columns=fullflexible,
   keepspaces=true,

@@ -32,7 +32,7 @@ The order matters. T1 and T2 decide whether approaches A and B can work at
 all, and they take about ten minutes. The probe needs no installation in
 \code{penguin}, because Bazel builds it as a static binary.
 
-\begin{lstlisting}[style=shell,caption={Tests T0 to T2},label={lst:probe}]
+\begin{lstlisting}[style=shell,caption={Tests T0 to T2},label={lst:probe},float=tb]
 # build host, in the workspace (pick the Chromebook's architecture)
 bazel build //cmd/fido-probe \
   --@rules_go//go/config:pure \
