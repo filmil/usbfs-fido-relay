@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "ctaphid",
+    srcs = ["ctaphid.go"],
+    importpath = "github.com/filmil/yubikey-forward/ctaphid",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "ctaphid_test",
+    srcs = ["ctaphid_test.go"],
+    embed = [":ctaphid"],
+)

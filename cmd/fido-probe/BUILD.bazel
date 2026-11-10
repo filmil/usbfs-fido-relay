@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: Apache-2.0
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "fido-probe_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/filmil/yubikey-forward/cmd/fido-probe",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//ctaphid",
+        "//usbfs",
+    ],
+)
+
+go_binary(
+    name = "fido-probe",
+    embed = [":fido-probe_lib"],
+    visibility = ["//visibility:public"],
+)

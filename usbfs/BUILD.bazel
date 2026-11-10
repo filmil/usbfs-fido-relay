@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: Apache-2.0
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "usbfs",
+    srcs = [
+        "descriptors.go",
+        "device.go",
+    ],
+    importpath = "github.com/filmil/yubikey-forward/usbfs",
+    visibility = ["//visibility:public"],
+    deps = ["@org_golang_x_sys//unix"],
+)
+
+go_test(
+    name = "usbfs_test",
+    srcs = ["descriptors_test.go"],
+    embed = [":usbfs"],
+)
