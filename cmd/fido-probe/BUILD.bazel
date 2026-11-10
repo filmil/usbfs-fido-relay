@@ -1,19 +1,56 @@
 # SPDX-License-Identifier: Apache-2.0
-load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_go//go:def.bzl", "go_binary", "go_cross_binary", "go_library")
 
 go_library(
     name = "fido-probe_lib",
-    srcs = ["main.go"],
+    srcs = [
+        "main.go",
+        "open_darwin.go",
+        "open_linux.go",
+    ],
     importpath = "github.com/filmil/yubikey-forward/cmd/fido-probe",
     visibility = ["//visibility:private"],
     deps = [
         "//ctaphid",
-        "//usbfs",
-    ],
+    ] + select({
+        "@rules_go//go/platform:android": [
+            "//usbfs",
+        ],
+        "@rules_go//go/platform:darwin": [
+            "@com_rafaelmartins_p_usbhid//:usbhid",
+        ],
+        "@rules_go//go/platform:ios": [
+            "@com_rafaelmartins_p_usbhid//:usbhid",
+        ],
+        "@rules_go//go/platform:linux": [
+            "//usbfs",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 go_binary(
     name = "fido-probe",
     embed = [":fido-probe_lib"],
+    # Static and cgo free on every platform; the macOS backend reaches
+    # IOKit through purego.
+    pure = "on",
     visibility = ["//visibility:public"],
 )
+
+# The release binaries. `bazel build //...` builds all four from one
+# Linux machine; no Apple SDK is needed.
+[
+    go_cross_binary(
+        name = "fido-probe_" + plat,
+        platform = "@rules_go//go/toolchain:" + plat,
+        target = ":fido-probe",
+        visibility = ["//visibility:public"],
+    )
+    for plat in [
+        "linux_amd64",
+        "linux_arm64",
+        "darwin_amd64",
+        "darwin_arm64",
+    ]
+]

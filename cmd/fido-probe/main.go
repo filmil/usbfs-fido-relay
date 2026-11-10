@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
-// Command fido-probe checks, on the real Chromebook, whether a process in
-// the Crostini container can reach a FIDO key's CTAPHID interface through
-// the key's usbfs node. It changes nothing on the key: it sends
-// CTAPHID_INIT and authenticatorGetInfo, which read only.
+// Command fido-probe checks that this machine can talk to a FIDO key's
+// CTAPHID interface, the way a key-side relay would. It changes nothing on
+// the key: it sends CTAPHID_INIT and authenticatorGetInfo, which read only.
+//
+// On Linux, including the ChromeOS Linux container, it uses the key's usbfs
+// node (open_linux.go). On macOS it uses IOKit, without seizing the key
+// (open_darwin.go).
 //
 // Usage:
 //
-//	fido-probe [/dev/bus/usb/BBB/DDD]
+//	fido-probe [DEVICE]
 //
-// With no argument it looks for the first Yubico device (vendor 0x1050).
-// While it runs, the kernel's HID driver is detached from the FIDO
-// interface; it is attached again at the end.
+// With no argument it uses the first Yubico key it finds.
 package main
 
 import (
@@ -19,108 +20,56 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/filmil/yubikey-forward/ctaphid"
-	"github.com/filmil/yubikey-forward/usbfs"
 )
+
+// transport moves 64-byte CTAPHID reports to and from the key.
+type transport interface {
+	// send writes one report to the key.
+	send(report []byte) error
+	// recv reads one report. It returns errTimeout when the key sent
+	// nothing within the timeout.
+	recv(timeout time.Duration) ([]byte, error)
+	// close releases the key.
+	close() error
+}
+
+var errTimeout = errors.New("timeout")
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "FAIL:", err)
 		os.Exit(1)
 	}
-	fmt.Println("PASS: the FIDO interface works through usbfs")
-}
-
-func find() (string, error) {
-	nodes, err := filepath.Glob("/dev/bus/usb/*/*")
-	if err != nil {
-		return "", err
-	}
-	for _, n := range nodes {
-		h, err := usbfs.Open(n)
-		if err != nil {
-			continue
-		}
-		d, err := h.Descriptors()
-		h.Close()
-		if err == nil && d.VendorID == 0x1050 {
-			return n, nil
-		}
-	}
-	return "", fmt.Errorf("no Yubico device among %d usbfs nodes; is the key shared with Linux?", len(nodes))
+	fmt.Println("PASS: the FIDO interface works from this machine")
 }
 
 func run(args []string) error {
-	path := ""
+	device := ""
 	if len(args) > 0 {
-		path = args[0]
-	} else {
-		p, err := find()
-		if err != nil {
-			return err
-		}
-		path = p
+		device = args[0]
 	}
-	fmt.Println("device:", path)
-	h, err := usbfs.Open(path)
-	if err != nil {
-		return fmt.Errorf("open: %w", err)
-	}
-	defer h.Close()
-	d, err := h.Descriptors()
+	t, err := open(device)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("id: %04x:%04x, %d interfaces\n", d.VendorID, d.ProductID, len(d.Interfaces))
-	for _, it := range d.Interfaces {
-		fmt.Printf("  interface %d: class %02x, %d endpoints\n", it.Number, it.Class, len(it.Endpoints))
-	}
-	for _, it := range d.HIDInterfaces() {
-		in, out, ok := it.InterruptPair()
-		if !ok || it.ReportDescLn == 0 {
-			continue
+	defer func() {
+		if err := t.close(); err != nil {
+			fmt.Println("warning: release the key:", err)
 		}
-		if err := h.Detach(it.Number); err != nil {
-			return fmt.Errorf("detach the kernel driver from interface %d: %w", it.Number, err)
-		}
-		fmt.Printf("interface %d: kernel driver detached\n", it.Number)
-		err := probe(h, it, in, out)
-		if rerr := h.Reattach(it.Number); rerr != nil {
-			fmt.Printf("interface %d: reattach failed: %v (unplug and share the key again)\n", it.Number, rerr)
-		}
-		if errors.Is(err, errNotFIDO) {
-			continue
-		}
-		return err
-	}
-	return errors.New("no FIDO HID interface found")
+	}()
+	return probe(t)
 }
 
-var errNotFIDO = errors.New("not a FIDO interface")
-
-func probe(h *usbfs.Handle, it usbfs.Interface, in, out byte) error {
-	if err := h.Claim(it.Number); err != nil {
-		return fmt.Errorf("claim interface %d: %w", it.Number, err)
-	}
-	defer h.Release(it.Number)
-	rd, err := h.ReportDescriptor(it.Number, it.ReportDescLn)
-	if err != nil {
-		return err
-	}
-	if !usbfs.IsFIDOReport(rd) {
-		return errNotFIDO
-	}
-	fmt.Printf("interface %d: FIDO usage page 0xF1D0, endpoints in %02x out %02x\n", it.Number, in, out)
-
+func probe(t transport) error {
 	nonce := make([]byte, 8)
 	if _, err := rand.Read(nonce); err != nil {
 		return err
 	}
 	start := time.Now()
-	resp, err := call(h, in, out, ctaphid.Message{CID: ctaphid.BroadcastCID, Command: ctaphid.CmdInit, Payload: nonce})
+	resp, err := call(t, ctaphid.Message{CID: ctaphid.BroadcastCID, Command: ctaphid.CmdInit, Payload: nonce})
 	if err != nil {
 		return fmt.Errorf("CTAPHID_INIT: %w", err)
 	}
@@ -136,7 +85,7 @@ func probe(h *usbfs.Handle, it usbfs.Interface, in, out byte) error {
 		return nil
 	}
 	start = time.Now()
-	resp, err = call(h, in, out, ctaphid.Message{CID: cid, Command: ctaphid.CmdCBOR, Payload: []byte{ctaphid.AuthGetInfo}})
+	resp, err = call(t, ctaphid.Message{CID: cid, Command: ctaphid.CmdCBOR, Payload: []byte{ctaphid.AuthGetInfo}})
 	if err != nil {
 		return fmt.Errorf("authenticatorGetInfo: %w", err)
 	}
@@ -154,38 +103,34 @@ func probe(h *usbfs.Handle, it usbfs.Interface, in, out byte) error {
 
 // call sends one message and returns the reply on the same channel. It
 // skips KEEPALIVE messages, as a CTAPHID client must.
-func call(h *usbfs.Handle, in, out byte, m ctaphid.Message) (*ctaphid.Message, error) {
+func call(t transport, m ctaphid.Message) (*ctaphid.Message, error) {
 	reports, err := ctaphid.Split(m)
 	if err != nil {
 		return nil, err
 	}
 	for _, r := range reports {
-		if _, err := h.Interrupt(out, r, time.Second); err != nil {
-			return nil, fmt.Errorf("interrupt OUT: %w", err)
+		if err := t.send(r); err != nil {
+			return nil, fmt.Errorf("send: %w", err)
 		}
 	}
 	var a ctaphid.Assembler
 	deadline := time.Now().Add(5 * time.Second)
-	buf := make([]byte, ctaphid.ReportSize)
 	for time.Now().Before(deadline) {
-		n, err := h.Interrupt(in, buf, 200*time.Millisecond)
-		if errors.Is(err, usbfs.ErrTimeout) {
+		r, err := t.recv(200 * time.Millisecond)
+		if errors.Is(err, errTimeout) {
 			continue
 		}
 		if err != nil {
-			return nil, fmt.Errorf("interrupt IN: %w", err)
+			return nil, fmt.Errorf("receive: %w", err)
 		}
-		if n != ctaphid.ReportSize {
-			return nil, fmt.Errorf("interrupt IN: %d bytes, want %d", n, ctaphid.ReportSize)
+		if len(r) != ctaphid.ReportSize {
+			return nil, fmt.Errorf("receive: %d bytes, want %d", len(r), ctaphid.ReportSize)
 		}
-		got, err := a.Add(append([]byte(nil), buf...))
+		got, err := a.Add(r)
 		if err != nil {
 			return nil, err
 		}
-		if got == nil || got.CID != m.CID {
-			continue
-		}
-		if got.Command == ctaphid.CmdKeepalive {
+		if got == nil || got.CID != m.CID || got.Command == ctaphid.CmdKeepalive {
 			continue
 		}
 		if got.Command == ctaphid.CmdError {

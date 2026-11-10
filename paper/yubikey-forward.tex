@@ -155,6 +155,7 @@ SSH, remote desktop, security keys
 \input{sections/05_comparison.tex}
 \input{sections/06_recommendation.tex}
 \input{sections/07_component.tex}
+\input{sections/07a_portability.tex}
 \input{sections/08_security.tex}
 \input{sections/09_testplan.tex}
 \input{sections/10_conclusion.tex}
@@ -225,6 +226,16 @@ SSH, remote desktop, security keys
 \bibitem{yk-piv} Yubico, ``PIV certificate slots,'' developer documentation.
   \url{https://developers.yubico.com/PIV/Introduction/Certificate_slots.html}
 \bibitem{yk-pgp} Yubico, ``OpenPGP,'' developer documentation. \url{https://developers.yubico.com/PGP/}
+\bibitem{usbhid} rafaelmartins (GitHub), \code{usbhid}, module \code{rafaelmartins.com/p/usbhid}, Oct. 2026, BSD-3-Clause.
+  \url{https://github.com/rafaelmartins/usbhid}
+\bibitem{libfido2osx} Yubico, libfido2 \code{src/hid\_osx.c} (lines 201, 451), and Chromium
+  \code{services/device/hid/hid\_service\_mac.cc} (line 175).
+\bibitem{iohidfam} Apple, IOHIDFamily, \code{IOHIDDevice.cpp} (lines 527 to 531) and
+  \code{IOHIDLibUserClient.cpp} (lines 332, 710 to 714).
+  \url{https://github.com/apple-oss-distributions/IOHIDFamily}
+\bibitem{iohidres} Apple, IOHIDFamily, \code{IOHIDResourceUserClient.cpp} (lines 32 to 33 and 117 to 148),
+  and ``com.apple.developer.hid.virtual.device,'' developer documentation.
+\bibitem{termina} ChromiumOS kernel, \code{chromeos/config/termina/base.config}, chromeos-6.6, commit c3031f3e.
 \bibitem{usbip-deb} Debian, package \code{usbip}, trixie. \url{https://packages.debian.org/trixie/usbip}
 \end{thebibliography}
 

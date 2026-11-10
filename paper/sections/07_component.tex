@@ -40,7 +40,7 @@ them again. Its \code{Policy} type decides which CTAP2 commands pass.
 Listing~\ref{lst:policy} shows the decision.
 
 \begin{lstlisting}[style=go,caption={The command policy in package \code{ctaphid}},label={lst:policy},float=tb]
-// Allowed reports whether the policy passes the message to the key.
+// Allowed: does the policy pass m to the key?
 func (p Policy) Allowed(m Message) bool {
   if m.Command != CmdCBOR || len(m.Payload) == 0 {
     return true // framing (INIT, PING, CANCEL) or U2F
