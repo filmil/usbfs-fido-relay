@@ -16,5 +16,8 @@ PIV use agent forwarding instead.
 
 The probe on a real Chromebook answered the one question that source code
 could not: the container can claim a security key's FIDO interface, as root.
-A YubiKey~5 answered FIDO~2.1 requests through it. The remaining work is
-about 400 lines of Go for the relay.
+A YubiKey~5 answered FIDO~2.1 requests through it. The relay,
+\code{ffwd-usbfs}, is 586 lines of Go. With it, Chrome on a remote host
+registered and used a WebAuthn credential on the Chromebook's YubiKey. The
+remaining tests are latency (T5) and OpenPGP and PIV next to the relay
+(T6).
