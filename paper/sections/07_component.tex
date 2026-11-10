@@ -4,8 +4,8 @@
 
 No existing tool reads a FIDO key through usbfs and relays it. The smallest
 new component, \code{ffwd-usbfs}, fills that gap. Table~\ref{tab:component}
-gives its design. We write it only after the probe passes on a real
-Chromebook (Section~\ref{sec:testplan}).
+gives its design. We wrote it after the probe passed on a real Chromebook
+(Section~\ref{sec:testplan}); it is not yet tested end to end.
 
 \begin{table}[t]
 \centering
@@ -20,12 +20,12 @@ Purpose & Key side of fido-forward for a host with a usbfs node and no \code{hid
 Language & Go 1.27, \code{CGO\_ENABLED=0}, built with Bazel (\code{rules\_go}) \\
 Libraries & \code{golang.org/x/sys/unix}, and the packages \code{ctaphid} and \code{usbfs} of this study \\
 Command & \code{ffwd-usbfs [-d NODE] [--allow-management] HOST} \\
-Transport & Starts \code{ssh -T HOST fido-forward --sink} over a socketpair, as fido-forward does \\
+Transport & Starts \code{ssh -T HOST fido-forward --sink} with pipes, as fido-forward does; under \code{sudo} it gives up root before \code{ssh} starts \\
 Wire & fido-forward v1: read \code{FFWD\textbackslash x01}, write it back, then raw 64-byte reports \\
 USB & Find the HID interface with page 0xF1D0; detach \code{usbhid}; claim it; one reader of interrupt IN, one writer of interrupt OUT \\
-Policy & Join each request; answer a refused command with CTAP2 status \code{0x27} (operation denied); never send it to the key \\
+Policy & Judge each request by its first packet; answer a refused CTAP2 command with status \code{0x27} (operation denied) and a refused vendor command with \code{CTAPHID\_ERROR}; drop the rest of the message; never send it to the key \\
 Teardown & \code{CTAPHID\_CANCEL} on each channel, release, attach \code{usbhid} again \\
-Size & About 400 lines with tests (assumption) \\
+Size & 586 lines, and 214 lines of tests \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -69,8 +69,14 @@ equals the number in \code{<linux/usbdevice\_fs.h>}.
 detaches \code{usbhid} from the FIDO interface, sends \code{CTAPHID\_INIT}
 and \code{getInfo}, and attaches the driver again. Both commands read only.
 
+\paragraph{\code{relay}} It is the key side of fido-forward's wire
+protocol. It has no USB code, so unit tests run it against a fake key. They
+check that a reset of three packets never reaches the key, that the far side
+gets status \code{0x27}, and that every used channel gets
+\code{CTAPHID\_CANCEL} at the end.
+
 \begin{tip}
-The first version of \code{ffwd-usbfs} can read the interrupt IN endpoint in
+The first version of \code{ffwd-usbfs} reads the interrupt IN endpoint in
 a loop with a 200\,ms timeout. A later version can keep an IN transfer
 pending at all times with asynchronous URBs (\code{USBDEVFS\_SUBMITURB} and
 \code{USBDEVFS\_REAPURB}).

@@ -6,6 +6,7 @@ go_library(
     srcs = [
         "descriptors.go",
         "device.go",
+        "fido.go",
     ],
     importpath = "github.com/filmil/yubikey-forward/usbfs",
     visibility = ["//visibility:public"],

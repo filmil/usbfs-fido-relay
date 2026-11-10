@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Publishes a GitHub release with fido-probe for Linux (amd64, arm64) and
-# macOS (amd64, arm64), the paper as a PDF, and their SHA-256 sums.
+# macOS (amd64, arm64), ffwd-usbfs for Linux (amd64, arm64), the paper as
+# a PDF, and their SHA-256 sums.
 #
 # Runs once a month and by hand. It releases only when main has changed
 # since the last release: it checks first and builds second. The tag is the
@@ -59,7 +60,7 @@ jobs:
         if: steps.changed.outputs.changed == 'true'
         run: |
           bazel test //...
-          bazel build -c opt //cmd/fido-probe:all //paper:yubikey-forward
+          bazel build -c opt //cmd/fido-probe:all //cmd/ffwd-usbfs:all //paper:yubikey-forward
       - name: Collect the release files
         if: steps.changed.outputs.changed == 'true'
         env:
@@ -69,6 +70,10 @@ jobs:
           for plat in linux_amd64 linux_arm64 darwin_amd64 darwin_arm64; do
             f="$(bazel cquery -c opt "//cmd/fido-probe:fido-probe_${plat}" --output=files 2>/dev/null)"
             cp "$f" "dist/fido-probe-${VERSION}-${plat}"
+          done
+          for plat in linux_amd64 linux_arm64; do
+            f="$(bazel cquery -c opt "//cmd/ffwd-usbfs:ffwd-usbfs_${plat}" --output=files 2>/dev/null)"
+            cp "$f" "dist/ffwd-usbfs-${VERSION}-${plat}"
           done
           cp bazel-bin/paper/yubikey-forward.pdf "dist/yubikey-forward-${VERSION}.pdf"
           (cd dist && sha256sum * > SHA256SUMS)
@@ -82,6 +87,7 @@ jobs:
         run: |
           {
             echo "fido-probe checks that this machine can reach a FIDO key's CTAPHID interface."
+            echo "ffwd-usbfs forwards the key's FIDO interface over SSH to fido-forward's sink (TESTPLAN.md, T4)."
             echo "Linux binaries are static; on ChromeOS run the linux one in the Linux container."
             echo "See TESTPLAN.md for how to use it. The paper is the design study."
             echo

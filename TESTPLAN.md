@@ -149,15 +149,22 @@ Log out and in again (also in the CRD session), so that the new group applies.
 
 ## T4. Forward the key and log in with WebAuthn (Q7)
 
-This test needs `ffwd-usbfs` (DESIGN.md, section 6).
-It does not exist yet.
+This test needs `ffwd-usbfs` (DESIGN.md, section 6), built as `//cmd/ffwd-usbfs:ffwd-usbfs_linux_amd64` or `_linux_arm64`.
+First check that `ssh REMOTE true` works in penguin as your own user, with no password prompt that you cannot answer.
 
 In penguin:
 
 ```sh
-./ffwd-usbfs REMOTE
-# expected: remote: ready /dev/hidrawM, then: local: relaying
+sudo --preserve-env=SSH_AUTH_SOCK ./ffwd-usbfs REMOTE
+# expected: local: device ..., local: interface 1: FIDO usage page 0xF1D0 ...,
+#           local: running as USER from now on,
+#           remote: ready /dev/hidrawM, then: local: relaying
 ```
+
+`sudo` is needed to open the key's node (T1).
+The relay gives up root before it starts `ssh`, so `ssh` uses your keys and `~/.ssh/config`.
+`--preserve-env=SSH_AUTH_SOCK` keeps your ssh-agent; without an agent, `ssh` reads your key files.
+Ctrl-C ends the forward. The last line must be `local: key given back to the system`.
 
 On the remote host, in a terminal of the CRD session:
 
