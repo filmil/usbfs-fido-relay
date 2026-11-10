@@ -117,8 +117,9 @@ from a remote Linux host, and recommends one.
 The running example is one WebAuthn login in Chrome on the remote host,
 which the user reaches through Chrome Remote Desktop.
 Every claim about software is marked as verified, with its source, or as an
-assumption. No claim has been tested on a real Chromebook yet; the test
-plan is in Section~\ref{sec:testplan}.}}
+assumption. The decisive claim was tested on one Chromebook with a
+YubiKey~5; the test plan and its results are in
+Section~\ref{sec:testplan}.}}
 
 \markboth{Design study~~$\cdot$~~November 2026}{YubiKey forwarding from a Chromebook}
 
@@ -137,8 +138,9 @@ the design: the ChromeOS Linux container receives a shared USB device only as
 a raw usbfs node, never as a \code{hidraw} node. Existing relays need
 \code{hidraw}. We recommend a relay of FIDO HID reports over SSH, with a new
 key-side component that reads the key through usbfs and refuses commands that
-can erase the key. We recommend agent forwarding for OpenPGP and PIV. We give
-the test plan that must run on a real Chromebook before any product is built.
+can erase the key. We recommend agent forwarding for OpenPGP and PIV. A probe on a real
+Chromebook confirmed that the container can claim a security key's FIDO
+interface and talk to it in 3\,ms.
 \end{abstract}
 
 \begin{IEEEkeywords}

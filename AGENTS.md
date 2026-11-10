@@ -19,5 +19,5 @@ The ones that matter most here:
 * **SPDX.** Every source and BUILD file starts with `SPDX-License-Identifier: Apache-2.0`.
 * **Git.** Conventional commit titles, the assistant attribution note, and the prompt in the commit message.
   Branch for each change and open a pull request; do not push to `main`.
-* **Hardware.** Nothing here has been tested on a real Chromebook yet.
-  TESTPLAN.md lists the tests. Do not mark an open question as answered without a test result.
+* **Hardware.** Tests T0 to T2 passed on a Chromebook on 2026-11-09, with a Titan key and a YubiKey 5 (FIDO 2.1); nothing else has been tested on hardware.
+  TESTPLAN.md lists the tests and their results. Do not mark an open question as answered without a test result.

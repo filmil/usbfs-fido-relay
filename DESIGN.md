@@ -1,7 +1,7 @@
 # YubiKey forwarding from a Chromebook to a remote host: design study
 
 Status: study, 2026-11-10.
-No hardware test has been done yet.
+Tests T0 to T2 ran on a Chromebook on 2026-11-09 with a U2F-only Google Titan key; they passed, with a U2F-only Google Titan key and with a YubiKey 5 (TESTPLAN.md, results table).
 The test plan is in [TESTPLAN.md](TESTPLAN.md).
 The raw research notes, with all sources, are in [research/](research/).
 
@@ -28,7 +28,7 @@ It forwards all YubiKey functions, but it gives the remote root user raw control
 
 | # | Fact | Status | Source |
 |---|---|---|---|
-| F1 | The Crostini container gets a shared USB device only as its usbfs node, mode 0666. It gets no `/dev/hidraw` node. | Verified | tremplin `start_lxd.go` L192-228, L366 (research/A-B) |
+| F1 | The Crostini container gets a shared USB device only as its usbfs node. It gets no `/dev/hidraw` node. On the tested Chromebook the node is `0664 root:root`, so a process needs root (`sudo` in penguin) to write to it; the source said 0666. | Verified (source and test T1) | tremplin `start_lxd.go` L192-228, L366 (research/A-B); TESTPLAN.md T1 |
 | F2 | ChromeOS can refuse to share a YubiKey. permission_broker can return DENY or LOCKDOWN. The Smart Card Connector app can block sharing. | Verified | permission_broker `allow_conforming_usb_device_rule.cc`; chromium-os-dev threads (research/A-B) |
 | F3 | A key shared with Crostini is not available to ChromeOS while it is shared. | Verified (one report) | crosvm-dev thread (research/D) |
 | F4 | `vmc key-attach` shares the key with ChromeOS at the same time, but it supports U2F only. FIDO2 hangs. | Verified | crosvm-dev thread; crosvm book |
@@ -39,10 +39,9 @@ It forwards all YubiKey functions, but it gives the remote root user raw control
 | F9 | A real key cannot sign for a virtual authenticator. A relay must forward whole CTAP commands. | Verified | virtual-fido `ctap/ctap.go` L250, L364 (research/C-E) |
 | F10 | A forwarded ssh-agent does not sign WebAuthn challenges with non-`ssh:` FIDO keys. | Verified | OpenSSH 8.4 release notes |
 
-F1 and F5 together give the main open question.
-A process in the container can probably detach usbhid and claim the FIDO interface.
-Nobody has reported this yet.
-`cmd/fido-probe` tests it in about 10 seconds.
+F1 and F5 together gave the main open question.
+Test T2 answered it on 2026-11-09: as root, a process in the container detached usbhid from a FIDO key's interface, claimed it, and got a CTAPHID_INIT reply in 3 ms (TESTPLAN.md).
+The first key was a U2F-only Google Titan key. A second run with a YubiKey 5 (firmware 5.8.0) passed too: CTAPHID_INIT in 4 ms, and authenticatorGetInfo in 230 ms reported FIDO_2_0 and FIDO_2_1.
 
 ## 3. Comparison of approaches
 
@@ -202,7 +201,7 @@ A later version can use asynchronous URBs (`USBDEVFS_SUBMITURB`, `USBDEVFS_REAPU
 |---|---|---|
 | Q1 | Does ChromeOS let you share the YubiKey with Linux on this Chromebook? Does it return ALLOW_WITH_DETACH, LOCKDOWN or DENY? | T1 |
 | Q2 | Does the container see the key under `/dev/bus/usb`, with mode 0666? | T1 |
-| Q3 | Can a process in the container detach usbhid from the FIDO interface, claim it, and run CTAPHID_INIT and authenticatorGetInfo? | T2 (`fido-probe`) |
+| Q3 | Can a process in the container detach usbhid from the FIDO interface, claim it, and run CTAPHID_INIT and authenticatorGetInfo? | T2: **yes, as root** (2026-11-09; Titan key and YubiKey 5, FIDO 2.1) |
 | Q4 | Is the Chromebook amd64 or arm64? | T0 (`uname -m`) |
 | Q5 | Does the round trip over SSH stay well below Chrome's 20 s device timeout during a touch? | T5 |
 | Q6 | Can pcscd claim the CCID interface while the relay holds the FIDO interface? | T6 |
