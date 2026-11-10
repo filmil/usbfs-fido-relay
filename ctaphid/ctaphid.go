@@ -41,6 +41,14 @@ const (
 	CmdError     byte = 0xBF
 )
 
+// ErrInvalidCmd is the CTAPHID_ERROR code for a command that the device
+// does not know (CTAP 2.1, section 11.2.9.1.6).
+const ErrInvalidCmd byte = 0x01
+
+// StatusOperationDenied is the CTAP2 status CTAP2_ERR_OPERATION_DENIED
+// (CTAP 2.1, section 8.2).
+const StatusOperationDenied byte = 0x27
+
 // BroadcastCID is the channel that CTAPHID_INIT uses to allocate a channel.
 const BroadcastCID uint32 = 0xFFFFFFFF
 
@@ -151,11 +159,22 @@ type Policy struct {
 }
 
 // Allowed reports whether the policy passes the message to the key.
-// Only CTAPHID_CBOR messages are classified; all others pass, because
-// they are framing (INIT, PING, CANCEL) or U2F (MSG), which cannot
-// erase or list credentials.
+// It needs only the command and the first payload byte, so the payload
+// of an init packet is enough.
+//
+// CTAPHID framing (INIT, PING, CANCEL, WINK, LOCK) and U2F (MSG) pass:
+// they cannot erase or list credentials. Other CTAPHID commands are
+// vendor commands; a YubiKey uses them to change its configuration, so
+// they pass only with AllowManagement.
 func (p Policy) Allowed(m Message) bool {
-	if m.Command != CmdCBOR || len(m.Payload) == 0 {
+	switch m.Command {
+	case CmdInit, CmdPing, CmdCancel, CmdWink, CmdLock, CmdMsg:
+		return true
+	case CmdCBOR:
+	default:
+		return p.AllowManagement
+	}
+	if len(m.Payload) == 0 {
 		return true
 	}
 	switch m.Payload[0] {

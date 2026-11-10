@@ -16,14 +16,18 @@ A design study: use a YubiKey on a Chromebook (in the Crostini Linux container) 
 bazel test //...
 ```
 
-`bazel build //...` builds `fido-probe` for Linux (amd64, arm64) and macOS (amd64, arm64) as `//cmd/fido-probe:fido-probe_<platform>`, and the paper as `//paper:yubikey-forward`.
+`bazel build //...` builds:
+
+* `fido-probe`, a read-only check of the key, for Linux (amd64, arm64) and macOS (amd64, arm64), as `//cmd/fido-probe:fido-probe_<platform>`;
+* `ffwd-usbfs`, the relay that forwards the key over SSH to fido-forward's sink, for Linux (amd64, arm64), as `//cmd/ffwd-usbfs:ffwd-usbfs_<platform>`;
+* the paper, as `//paper:yubikey-forward`.
 Bazel provides the Go SDK, the C toolchain and a TeX distribution (TinyTeX); nothing comes from the host.
 
 ## Releases
 
 [`release.yml`](.github/workflows/release.yml) runs once a month and from the Actions tab.
 It releases only when `main` has changed since the last release.
-Each release holds `fido-probe` for the four platforms, the paper as a PDF, and `SHA256SUMS`.
+Each release holds `fido-probe` for the four platforms, `ffwd-usbfs` for the two Linux platforms, the paper as a PDF, and `SHA256SUMS`.
 
 ## License
 

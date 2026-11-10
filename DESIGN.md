@@ -157,7 +157,8 @@ One WebAuthn login:
 
 ## 6. The smallest new component: `ffwd-usbfs`
 
-Write it only if probe test T2 passes (TESTPLAN.md).
+Written after probe test T2 passed (TESTPLAN.md): `cmd/ffwd-usbfs`, with the relay in `relay/` and the key access in `usbfs/fido.go`.
+It is not yet tested end to end (T4).
 
 | Item | Design |
 |---|---|
@@ -165,12 +166,12 @@ Write it only if probe test T2 passes (TESTPLAN.md).
 | Language | Go 1.27, `CGO_ENABLED=0`, built with Bazel (`rules_go`) |
 | Libraries | `golang.org/x/sys/unix` only, plus `//usbfs` and `//ctaphid` from this workspace |
 | Command line | `ffwd-usbfs [-d /dev/bus/usb/BBB/DDD] [--allow-management] HOST` |
-| Transport | Starts `ssh -T -o ServerAliveInterval=5 -o ServerAliveCountMax=3 -- HOST fido-forward --sink` over a socketpair, the same way fido-forward's client does |
+| Transport | Starts `ssh -T -o ServerAliveInterval=5 -o ServerAliveCountMax=3 -- HOST fido-forward --sink` over pipes, as fido-forward's client does. Under `sudo`, it opens the key, then switches to the `SUDO_UID` user before `ssh` starts, so `ssh` uses that user's keys. |
 | Wire protocol | fido-forward v1: read `FFWD\x01` from the sink, write it back, then raw 64-byte reports both ways |
 | USB side | Find the HID interface with usage page 0xF1D0; detach usbhid; claim it; one goroutine reads interrupt IN, one writes interrupt OUT |
-| Policy | Join each request with `ctaphid.Assembler`. Refuse a refused command with a CBOR status `0x27` (CTAP2_ERR_OPERATION_DENIED) to the far side. Refused commands never reach the key. |
+| Policy | Judge each request by its init packet (the command and the first payload byte are there). Answer a refused CTAP2 command with status `0x27` (CTAP2_ERR_OPERATION_DENIED), and a refused CTAPHID vendor command (0xC0 and up; a YubiKey changes its configuration with these) with CTAPHID_ERROR 0x01. Drop the continuation packets. Refused requests never reach the key. |
 | Teardown | Send CTAPHID_CANCEL on each forwarded channel, release the interface, attach usbhid again |
-| Size | About 400 lines and tests (assumption) |
+| Size | 586 lines, and 214 lines of tests in `relay/relay_test.go` |
 | Exit codes | Same as fido-forward: 0 clean, 1 transport failure, 2 usage, 3 key or permission error |
 
 Interfaces that exist now in this workspace:

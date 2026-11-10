@@ -75,7 +75,19 @@ func TestPolicy(t *testing.T) {
 	if !(Policy{AllowManagement: true}).Allowed(cbor(AuthReset)) {
 		t.Error("AllowManagement did not pass reset")
 	}
-	if !strict.Allowed(Message{Command: CmdInit, Payload: make([]byte, 8)}) {
-		t.Error("INIT refused")
+	for _, c := range []byte{CmdInit, CmdPing, CmdCancel, CmdWink, CmdLock, CmdMsg} {
+		if !strict.Allowed(Message{Command: c, Payload: make([]byte, 8)}) {
+			t.Errorf("CTAPHID command 0x%02x refused", c)
+		}
+	}
+	// 0xC0 to 0xFF are vendor commands; a YubiKey changes its
+	// configuration with some of them.
+	for _, c := range []byte{0xC0, 0xC2, 0xFF} {
+		if strict.Allowed(Message{Command: c}) {
+			t.Errorf("vendor command 0x%02x passed", c)
+		}
+		if !(Policy{AllowManagement: true}).Allowed(Message{Command: c}) {
+			t.Errorf("AllowManagement did not pass vendor command 0x%02x", c)
+		}
 	}
 }

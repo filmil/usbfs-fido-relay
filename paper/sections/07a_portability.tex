@@ -16,7 +16,7 @@ virtual key for a browser. Table~\ref{tab:ports} gives the answers.
 Platform & Key side & Use side \\
 \midrule
 Linux & Yes: \code{/dev/hidraw}, fido-forward's source as it is. & Yes: \code{/dev/uhid}, fido-forward's sink. \\
-ChromeOS & Yes, if the probe passes: usbfs only (Finding~\ref{find:nohidraw}). & No: the Crostini kernel has no UHID or HIDRAW option~\cite{termina} (verified). \\
+ChromeOS & Yes, usbfs only (Finding~\ref{find:nohidraw}); the probe passed (T2). & No: the Crostini kernel has no UHID or HIDRAW option~\cite{termina} (verified). \\
 macOS & Yes: IOKit, pure Go through purego~\cite{usbhid}. & Hard: needs an entitlement that Apple must approve~\cite{iohidres} (verified). \\
 \bottomrule
 \end{tabular}
