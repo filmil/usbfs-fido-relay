@@ -6,8 +6,5 @@ common --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
 # Tests that need a real YubiKey or root (uhid, vhci-hcd) are tagged and
 # run by hand; see TESTPLAN.md.
 test --test_tag_filters=-requires-hardware,-requires-root
-# rules_latex_host shells out to the host TeX installation, so its actions
-# run outside the sandbox (ai-coding-sop, latex-pdf-tutorial skill).
-build --spawn_strategy=local
 build --verbose_failures
 try-import %workspace%/user.bazelrc

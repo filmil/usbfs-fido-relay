@@ -1,3 +1,6 @@
+[![test](https://github.com/filmil/yubikey-forward/actions/workflows/test.yml/badge.svg)](https://github.com/filmil/yubikey-forward/actions/workflows/test.yml)
+[![release](https://github.com/filmil/yubikey-forward/actions/workflows/release.yml/badge.svg)](https://github.com/filmil/yubikey-forward/actions/workflows/release.yml)
+
 # yubikey-forward
 
 A design study: use a YubiKey on a Chromebook (in the Crostini Linux container) from a remote Linux host.
@@ -11,10 +14,16 @@ A design study: use a YubiKey on a Chromebook (in the Crostini Linux container) 
 
 ```sh
 bazel test //...
-bazel build //cmd/fido-probe --@rules_go//go/config:pure --platforms=@rules_go//go/toolchain:linux_amd64
 ```
 
-Bazel provides the Go SDK and the C toolchain; nothing comes from the host.
+`bazel build //...` builds `fido-probe` for Linux (amd64, arm64) and macOS (amd64, arm64) as `//cmd/fido-probe:fido-probe_<platform>`, and the paper as `//paper:yubikey-forward`.
+Bazel provides the Go SDK, the C toolchain and a TeX distribution (TinyTeX); nothing comes from the host.
+
+## Releases
+
+[`release.yml`](.github/workflows/release.yml) runs once a month and from the Actions tab.
+It releases only when `main` has changed since the last release.
+Each release holds `fido-probe` for the four platforms, the paper as a PDF, and `SHA256SUMS`.
 
 ## License
 
