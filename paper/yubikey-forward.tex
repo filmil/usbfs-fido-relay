@@ -159,6 +159,10 @@ SSH, remote desktop, security keys
 \input{sections/09_testplan.tex}
 \input{sections/10_conclusion.tex}
 
+% IEEEtran: \appendices starts the appendix sections (A, B, ...).
+\appendices
+\input{sections/11_appendix_yubikey.tex}
+
 % =====================================================================
 \begin{thebibliography}{30}
 \bibitem{ctap21} FIDO Alliance, ``Client to Authenticator Protocol (CTAP), version 2.1,''
@@ -212,6 +216,15 @@ SSH, remote desktop, security keys
   \url{https://p11-glue.github.io/p11-glue/p11-kit/manual/remoting.html}
 \bibitem{systemd} systemd, \code{src/udev/fido\_id/fido\_id.c} and \code{rules.d/60-fido-id.rules}.
   \url{https://github.com/systemd/systemd}
+\bibitem{yk-keygen} Yubico, ``U2F key generation,'' developer documentation.
+  \url{https://developers.yubico.com/U2F/Protocol_details/Key_generation.html}
+\bibitem{yk-resident} Yubico, ``Discoverable credentials / resident keys,'' WebAuthn developer guide.
+  \url{https://developers.yubico.com/WebAuthn/WebAuthn_Developer_Guide/Resident_Keys.html}
+\bibitem{yk-otp} Yubico, ``OTPs explained,'' developer documentation.
+  \url{https://developers.yubico.com/OTP/OTPs_Explained.html}
+\bibitem{yk-piv} Yubico, ``PIV certificate slots,'' developer documentation.
+  \url{https://developers.yubico.com/PIV/Introduction/Certificate_slots.html}
+\bibitem{yk-pgp} Yubico, ``OpenPGP,'' developer documentation. \url{https://developers.yubico.com/PGP/}
 \bibitem{usbip-deb} Debian, package \code{usbip}, trixie. \url{https://packages.debian.org/trixie/usbip}
 \end{thebibliography}
 
