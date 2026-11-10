@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: Apache-2.0
+load("@rules_latex_host//latex:defs.bzl", "latex_document")
+
+# The design study as an IEEE two-column paper.
+latex_document(
+    name = "yubikey-forward",
+    main = "yubikey-forward.tex",
+    deps = glob(["sections/*.tex"]),
+)

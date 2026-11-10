@@ -1,0 +1,60 @@
+% SPDX-License-Identifier: Apache-2.0
+\section{Introduction}
+\label{sec:intro}
+
+\IEEEPARstart{M}{any} engineers work on a remote Linux desktop from a
+Chromebook. Chrome Remote Desktop (CRD) shows the remote screen and sends the
+keyboard and the mouse. It does not send USB devices, and it does not send
+security keys. A web login that asks for a security key therefore fails on
+the remote desktop, even when the key is plugged into the Chromebook in front
+of the user.
+
+This study looks for a way to use that key on the remote host. It does not
+change CRD. Google's internal CRD client can proxy WebAuthn, but that path is
+closed to everyone else (Section~\ref{sec:approaches}).
+
+\subsection{The setting}
+
+The local machine is a Chromebook in normal mode. The user cannot load kernel
+modules and does not use developer mode. The user runs the Linux development
+environment, which ChromeOS calls Crostini. ChromeOS can share a USB device
+with that environment through \term{Manage USB devices}.
+
+The remote machine runs Linux. The user has root there, and reaches it by CRD
+and by SSH.
+
+The goals, in priority order:
+\begin{enumerate}
+\item WebAuthn and FIDO2 in Chrome on the remote host.
+\item SSH with FIDO keys (\code{ed25519-sk}), OpenPGP, and PIV on the remote
+      host. These are nice to have.
+\end{enumerate}
+
+\subsection{The running example}
+
+One login runs through the whole paper. The user opens a web site in Chrome
+inside the CRD session on the remote host. The site asks for a passkey. Chrome
+on the remote host must find a FIDO authenticator, send it a
+\code{getAssertion} request, and get back a signature that the real YubiKey
+made after a touch on the Chromebook.
+
+\subsection{Contributions}
+
+\begin{itemize}
+\item A comparison of eleven approaches (Section~\ref{sec:comparison}).
+\item One decisive fact from the ChromeOS source: the Linux container gets a
+      shared USB device only as a usbfs node, with no \code{hidraw} node
+      (Section~\ref{sec:crostini}).
+\item A recommended design that reuses an existing relay and adds one small
+      component (Sections~\ref{sec:recommendation} and~\ref{sec:component}).
+\item A probe and a test plan for the real Chromebook
+      (Section~\ref{sec:testplan}).
+\end{itemize}
+
+\subsection{How to read this paper}
+
+Section~\ref{sec:background} explains the YubiKey's USB interfaces and the
+CTAPHID protocol. Section~\ref{sec:crostini} explains how ChromeOS shares a
+USB device with Linux. If you know both, start at
+Section~\ref{sec:approaches}. Each claim about other software is marked
+\term{verified}, with a source, or \term{assumption}.

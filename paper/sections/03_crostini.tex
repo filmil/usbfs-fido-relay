@@ -1,0 +1,86 @@
+% SPDX-License-Identifier: Apache-2.0
+\section{How ChromeOS shares a USB device with Linux}
+\label{sec:crostini}
+
+Crostini is a stack of three layers. ChromeOS runs a virtual machine,
+\code{termina}, with crosvm. Inside \code{termina}, an LXD container named
+\code{penguin} holds the user's Debian system. Figure~\ref{fig:crostini}
+shows the path that a shared USB device takes.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[node distance=5mm and 4mm]
+  \node[mem] (yk) {YubiKey};
+  \node[sbox,below=of yk,text width=33mm] (pb) {ChromeOS\\\code{permission\_broker}};
+  \node[sbox,below=of pb,text width=33mm] (vm) {\code{termina} VM\\kernel: usbhid, hidraw};
+  \node[act,below=of vm,text width=33mm] (ct) {\code{penguin} container\\\code{/dev/bus/usb/BBB/DDD} only};
+  \node[ghost,right=6mm of pb,text width=26mm,font=\scriptsize] (dec)
+       {result:\\ALLOW\_WITH\_\\DETACH, LOCKDOWN,\\or DENY};
+  \node[ghost,right=6mm of ct,text width=26mm,font=\scriptsize] (tr)
+       {tremplin passes only block, tty and usb nodes};
+  \draw[fl] (yk) -- (pb);
+  \draw[fl] (pb) -- node[right,font=\scriptsize]{crosvm} (vm);
+  \draw[fl] (vm) -- node[right,font=\scriptsize]{LXD} (ct);
+  \draw[fld] (dec) -- (pb);
+  \draw[fld] (tr) -- (ct);
+\end{tikzpicture}
+\caption{The path of a shared USB device. The container receives only the
+usbfs node. The \code{hidraw} nodes stay in the VM.}
+\label{fig:crostini}
+\end{figure}
+
+\subsection{ChromeOS can refuse the key}
+
+When the user turns on sharing, Chrome asks \code{permission\_broker} for all
+interfaces of the device~\cite{crosusb} (verified). The broker's rule for
+conforming devices returns one of three results~\cite{pb} (verified). A
+device that ChromeOS tags as external gets \code{ALLOW\_WITH\_DETACH}. A
+device in the older flow, with \code{usbhid} bound, gets
+\code{ALLOW\_WITH\_LOCKDOWN} or \code{DENY}. A 2025 report shows a YubiKey
+that got \code{DENY} on a new Chromebook and \code{ALLOW\_WITH\_DETACH} on an
+older one. Turning off the Smart Card Connector app fixed the new
+one~\cite{cros-scc} (verified).
+
+\begin{pitfall}
+The result depends on the Chromebook model and on the apps that are
+installed. Test T1 (Section~\ref{sec:testplan}) checks it first, because a
+refusal ends approaches A and B on that Chromebook.
+\end{pitfall}
+
+\subsection{The container gets no \code{hidraw} node}
+
+\begin{finding}
+\label{find:nohidraw}
+The \code{penguin} container receives a shared USB device only as its usbfs
+node, \code{/dev/bus/usb/BBB/DDD}, with mode \code{0666}. It receives no
+\code{hidraw} node. The container manager, tremplin, passes only the uevents
+of the subsystems block, tty and usb into the container~\cite{tremplin}
+(verified, two independent reads of the source).
+\end{finding}
+
+This finding decides the design. Every existing FIDO relay that we found
+reads the key through \code{hidraw}: fido-forward, qubes-app-u2f through
+python-fido2, and auth-relay through python-fido2. libfido2, and so OpenSSH's
+FIDO support, also needs \code{hidraw}. None of them can see the key inside
+\code{penguin}.
+
+\begin{finding}
+\label{find:detach}
+A process that has a usbfs node open can detach the kernel driver from one
+interface. The kernel performs no capability check for this
+\code{ioctl}~\cite{devio} (verified).
+\end{finding}
+
+Together, Findings~\ref{find:nohidraw} and~\ref{find:detach} suggest that a
+process in \code{penguin} can detach \code{usbhid} from the FIDO interface,
+claim it, and talk CTAPHID through usbfs. Nobody has reported this yet
+(assumption). The probe in Section~\ref{sec:testplan} tests it.
+
+\subsection{The key cannot serve both sides}
+
+A key that is shared with Crostini is not available to Chrome on the
+Chromebook. One 2025 report says that sharing takes an exclusive lock, so
+passkeys stop working in the ChromeOS browser~\cite{crosvmdev} (verified, one
+report). ChromeOS has a second path, \code{vmc key-attach}, which shares the
+key with both sides. It supports U2F only, and FIDO2 traffic
+hangs~\cite{crosvmdev} (verified, the maintainer confirmed it).

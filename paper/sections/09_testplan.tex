@@ -1,0 +1,50 @@
+% SPDX-License-Identifier: Apache-2.0
+\section{Open questions and test plan}
+\label{sec:testplan}
+
+No claim in this paper has been tested on a real Chromebook yet.
+Table~\ref{tab:tests} lists the open questions and the tests that answer
+them. The workspace file \code{TESTPLAN.md} gives the exact commands.
+
+\begin{table}[t]
+\centering
+\caption{Open questions and tests}
+\label{tab:tests}
+\scriptsize
+\begin{tabular}{@{}l>{\raggedright\arraybackslash}p{50mm}l@{}}
+\toprule
+\# & Question & Test \\
+\midrule
+Q1 & Does ChromeOS share the YubiKey with Linux on this model? & T1 \\
+Q2 & Does the container see the usbfs node with mode 0666? & T1 \\
+Q3 & Can the container detach \code{usbhid}, claim the FIDO interface, and run CTAPHID? & T2 \\
+Q4 & Is the Chromebook amd64 or arm64? & T0 \\
+Q5 & Does SSH latency stay far below Chrome's 20\,s device timeout? & T5 \\
+Q6 & Can \code{pcscd} hold the CCID interface while the relay runs? & T6 \\
+Q7 & Can Chrome in the CRD session open the virtual \code{hidraw} node? & T4 \\
+Q8 & Does the key return to ChromeOS when sharing stops? & T7 \\
+Q9 & Must the Smart Card Connector app be off? & T1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The order matters. T1 and T2 decide whether approaches A and B can work at
+all, and they take about ten minutes. The probe needs no installation in
+\code{penguin}, because Bazel builds it as a static binary.
+
+\begin{lstlisting}[style=shell,caption={Tests T0 to T2},label={lst:probe}]
+# build host, in the workspace (pick the Chromebook's architecture)
+bazel build //cmd/fido-probe \
+  --@rules_go//go/config:pure \
+  --platforms=@rules_go//go/toolchain:linux_amd64
+# penguin, after sharing the key in Manage USB devices
+uname -m
+ls -l /dev/bus/usb/*/* /dev/hidraw*
+./fido-probe
+# expected last line:
+# PASS: the FIDO interface works through usbfs
+\end{lstlisting}
+
+If T1 fails, ChromeOS refuses the key, and only approach E5 remains. If T2
+fails with \code{operation not permitted}, the container cannot detach the
+driver, and approaches A and B both fail on that Chromebook.

@@ -1,0 +1,100 @@
+% SPDX-License-Identifier: Apache-2.0
+\section{Approaches}
+\label{sec:approaches}
+
+This section describes each approach and what we found about it.
+Section~\ref{sec:comparison} compares them in one table.
+
+\subsection{Userspace USB/IP server in Crostini (A)}
+
+USB/IP sends USB transfers over TCP. A userspace server in \code{penguin}
+opens the key with libusb and exports it. The remote host loads
+\code{vhci-hcd} and runs \code{usbip attach} through an SSH tunnel. The remote
+host then sees the whole key, with all three interfaces.
+
+Two servers can export a real device. jiegec/usbip~\cite{jiegec} (Rust, MIT)
+runs one blocking transfer at a time, with a fixed 1\,s timeout, and answers
+a cancel request without cancelling anything (verified, source). A YubiKey
+report against it, issue~51, closed with no fix (verified).
+yunsmall/usbipdcpp~\cite{usbipdcpp} (C++, LGPL-3.0) submits transfers
+asynchronously and cancels them correctly (verified, source). It is less than
+two years old, and nobody has reported it with a YubiKey (assumption: unknown
+maturity). The remote side needs \code{vhci-hcd}, which Debian and Ubuntu
+ship as a module~\cite{usbip-deb} (verified).
+
+\subsection{CTAPHID relay with uhid (B)}
+
+A relay moves the 64-byte CTAPHID reports between the real key and a virtual
+FIDO key that \code{uhid} creates on the remote host. SSH carries the
+reports.
+
+fido-forward~\cite{fidoforward} (Go, MIT) does this. Its key side opens
+\code{/dev/hidrawN}. Its remote side, the \term{sink}, runs setuid to a
+dedicated user, opens \code{/dev/uhid}, and drops privilege before it reads
+any input (verified, source and requirements). Its wire format is a 5-byte
+marker, \code{FFWD} and version \code{0x01}, in each direction, then raw
+64-byte reports (verified). It filters CTAPHID channels, but not CTAP
+commands. The project is one month old and has one author.
+
+qubes-app-u2f~\cite{qubes} (Python, GPL-2.0+) relays parsed CTAP messages,
+not raw reports, over Qubes qrexec. It passes only four CTAP2 commands and
+sends no keepalives (verified, source). Chromium times out after a PIN
+prompt with it, and libfido2 cannot detect it (verified, open issues).
+
+\subsection{Virtual FIDO device with delegated crypto (C)}
+
+A software authenticator on the remote host could send only its signing step
+to the real key. This does not work. A real key never exports its private
+key, and it signs data that it builds itself: the relying party hash, the
+flags, and the counter. bulwarkid/virtual-fido~\cite{virtualfido} signs
+inside the library with a Go key (verified, \code{ctap/ctap.go} lines 250 and
+364). Delegating to a real key means forwarding whole CTAP commands, which
+is approach~B.
+
+\subsection{Agent forwarding (D)}
+
+OpenSSH's agent signs locally, and a forwarded agent lets the remote host ask
+for signatures~\cite{openssh} (verified). The FIDO touch happens on the local
+key. Since OpenSSH 8.4, a forwarded agent refuses to sign WebAuthn challenges
+with FIDO keys~\cite{openssh} (verified), so agent forwarding cannot serve
+goal~1. gpg-agent has an \term{extra socket} for forwarding, which refuses
+key export and most card commands~\cite{gnupgfwd} (verified). p11-kit can
+forward a PKCS\#11 token, such as the YubiKey's PIV applet, over a Unix
+socket and SSH~\cite{p11kit} (verified).
+
+In Crostini, users report that \code{pcscd} and \code{gpg} work with a shared
+key (verified, two reports). FIDO keys for SSH do not work there, because
+libfido2 needs \code{hidraw} (Finding~\ref{find:nohidraw}).
+
+\subsection{Other approaches (E1 to E6)}
+
+\paragraph{E1. Hybrid transport} Chrome can use a phone as authenticator.
+The hybrid transport needs a Bluetooth advertisement near the
+client~\cite{ctap22} (verified). A remote host has no phone nearby.
+
+\paragraph{E2. CRD forwarding} Chromium has code to proxy security keys and
+WebAuthn through CRD. Its policies are internal to Google, or for managed
+users only, and the WebAuthn channel accepts only the official CRD extension
+IDs~\cite{crdpol} (verified).
+
+\paragraph{E3. WebAuthn proxy extension} The extension API
+\code{chrome.webAuthenticationProxy} lets an extension take over WebAuthn in
+Chrome~\cite{wap} (verified). auth-relay~\cite{authrelay} uses it on the
+remote host and sends CTAP2 requests over SSH to python-fido2 on the laptop.
+The proxied request has no origin field, so auth-relay guesses the origin
+from the active tab (verified, source). Its laptop side needs \code{hidraw}.
+
+\paragraph{E4. Smart card relay} vsmartcard~\cite{vsmartcard} (GPL-3.0)
+relays a local PC/SC card to a virtual reader on another host (verified). It
+can carry PIV and OpenPGP (assumption: untested with a YubiKey). The remote
+host can then send any APDU to the card.
+
+\paragraph{E5. Log in on the Chromebook} The Chromebook's own Chrome can open
+a web app that the remote host serves, through an SSH SOCKS proxy. The host
+name stays the same, so the relying party ID matches~\cite{webauthn3}
+(assumption for the proxy setup). This avoids forwarding, but it does not help
+when the login must happen inside the remote desktop.
+
+\paragraph{E6. \code{vmc key-attach}} It shares the key with ChromeOS and
+Linux at once, but only for U2F~\cite{crosvmdev} (verified). Passkeys need
+FIDO2.

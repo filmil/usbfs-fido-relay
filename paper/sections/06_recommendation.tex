@@ -1,0 +1,91 @@
+% SPDX-License-Identifier: Apache-2.0
+\section{Recommendation}
+\label{sec:recommendation}
+
+\subsection{WebAuthn: a CTAPHID relay with a usbfs key side}
+
+We recommend approach B. The remote half is fido-forward's sink, unchanged.
+The Chromebook half is a new, small program, \code{ffwd-usbfs}, that reads
+the key through usbfs and speaks fido-forward's wire format
+(Section~\ref{sec:component}). Figure~\ref{fig:flow} shows the data flow.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=4mm and 7mm]
+  \node[mem] (yk) {YubiKey};
+  \node[sbox,right=of yk,text width=24mm] (pb) {ChromeOS\\\code{permission\_broker}};
+  \node[act,right=of pb,text width=30mm] (src) {\code{ffwd-usbfs}\\claims FIDO interface,\\refuses unsafe commands};
+  \node[sbox,right=of src] (ssh) {\code{ssh -T}};
+  \node[sbox,right=20mm of ssh] (sshd) {\code{sshd}};
+  \node[act,right=of sshd,text width=26mm] (sink) {\code{fido-forward}\\\code{--sink}, setuid\\\code{fidofwd}};
+  \node[mem,below=7mm of sink,text width=26mm] (hid) {virtual \code{/dev/hidrawM}\\page 0xF1D0};
+  \node[sbox,left=of hid,text width=22mm] (chr) {Chrome in the CRD session};
+  \draw[bidi] (yk) -- node[above,font=\scriptsize]{USB} (pb);
+  \draw[bidi] (pb) -- node[above,font=\scriptsize]{usbfs} (src);
+  \draw[bidi] (src) -- node[above,font=\scriptsize]{stdio} (ssh);
+  \draw[bidi,double] (ssh) -- node[above,font=\scriptsize]{SSH} (sshd);
+  \draw[bidi] (sshd) -- node[above,font=\scriptsize]{stdio} (sink);
+  \draw[bidi] (sink) -- node[right,font=\scriptsize]{\code{/dev/uhid}} (hid);
+  \draw[bidi] (hid) -- (chr);
+  \begin{scope}[on background layer]
+    \node[draw,dashed,rounded corners,fit=(yk)(pb)(src)(ssh),inner sep=2mm,
+          label={[font=\scriptsize]above:Chromebook (Crostini: \code{ffwd-usbfs}, \code{ssh})}] {};
+    \node[draw,dashed,rounded corners,fit=(sshd)(sink)(hid)(chr),inner sep=2mm,
+          label={[font=\scriptsize]above:Remote host}] {};
+  \end{scope}
+\end{tikzpicture}
+\caption{Data flow of the recommended design. Only the FIDO interface leaves
+the Chromebook. SSH is the only transport and the only authentication; no
+TCP port opens on either host.}
+\label{fig:flow}
+\end{figure*}
+
+\begin{example}[One login]
+\label{ex:login}
+\begin{enumerate}
+\item Chrome on the remote host writes a \code{CTAPHID\_CBOR} request with
+      \code{getAssertion} to \code{/dev/hidrawM}.
+\item The sink reads it from \code{/dev/uhid} and sends the 64-byte reports
+      up the SSH channel.
+\item \code{ffwd-usbfs} joins the reports, checks the command against its
+      policy, and writes them to the key's interrupt OUT endpoint.
+\item The key sends keepalives until the user touches it, then the
+      response.
+\item \code{ffwd-usbfs} reads them from the interrupt IN endpoint and sends
+      them down the SSH channel.
+\item The sink writes them to \code{/dev/uhid}. Chrome reads the response
+      and completes the login.
+\end{enumerate}
+\end{example}
+
+Five reasons support this choice:
+\begin{enumerate}
+\item Only the FIDO interface leaves the Chromebook. PIV, OpenPGP and OTP
+      stay local.
+\item The relay refuses commands that erase or change the key
+      (Section~\ref{sec:security}).
+\item The remote half exists, drops privilege before it reads input, and
+      builds with Bazel here for amd64 and arm64.
+\item SSH is the only transport and authentication.
+\item Keepalives pass through, so a slow touch does not time out.
+\end{enumerate}
+
+\subsection{OpenPGP and PIV: agent forwarding}
+
+For OpenPGP, forward gpg-agent's extra socket with \code{RemoteForward}, and
+run \code{scdaemon} and \code{pcscd} in Crostini~\cite{gnupgfwd}. For PIV,
+run \code{p11-kit server} with the YubiKey PKCS\#11 module in Crostini and
+forward its socket~\cite{p11kit}. The FIDO relay claims only the FIDO
+interface, and \code{pcscd} claims only the CCID interface, so the two should
+work side by side (assumption; test T6).
+
+FIDO keys for SSH cannot be used from Crostini (Finding~\ref{find:nohidraw}).
+On the remote host they work through the virtual key of approach B, because
+the remote host has a \code{hidraw} node.
+
+\subsection{Fallback: USB/IP with usbipdcpp}
+
+Use approach A if the probe fails, or if you need PIV and OpenPGP as real
+devices on the remote host. Use usbipdcpp, not jiegec/usbip. Use it only with
+a remote host that you trust fully, because it gives that host's root user
+full control of the key.

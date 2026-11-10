@@ -1,0 +1,200 @@
+% SPDX-License-Identifier: Apache-2.0
+% yubikey-forward.tex: IEEE two-column design study (ai-coding-sop house style).
+\documentclass[journal,9pt]{IEEEtran}
+\usepackage{cite}
+\usepackage{ifthen}
+\usepackage{graphicx}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+\setlength{\emergencystretch}{3em}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,shapes.geometric,positioning,fit,backgrounds,calc,
+                decorations.pathreplacing,matrix}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{enumitem}
+\setlist{nosep,leftmargin=*,topsep=2pt,itemsep=1pt}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage[hidelinks,bookmarks=true,pdfauthor={Filip Filmar},
+            pdftitle={Forwarding a YubiKey from a Chromebook to a Remote Linux Host}]{hyperref}
+
+\theoremstyle{definition}
+\newtheorem{finding}{Finding}
+\newtheorem{example}{Example}[section]
+\theoremstyle{remark}
+\newtheorem*{tip}{Tip}
+\newtheorem*{pitfall}{Pitfall}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\term}[1]{\emph{#1}}
+
+% Code listings: framed and highlighted; keywords bold, comments italic.
+\definecolor{kwblue}{RGB}{20,60,150}
+\definecolor{cmtgreen}{RGB}{90,120,90}
+\definecolor{strred}{RGB}{150,50,40}
+\definecolor{framegray}{gray}{0.70}
+\definecolor{bgshade}{gray}{0.97}
+\lstdefinestyle{go}{
+  language={},
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\bfseries\color{kwblue},
+  commentstyle=\itshape\color{cmtgreen},
+  stringstyle=\color{strred},
+  morekeywords={package,import,func,type,struct,return,if,switch,case,default,
+                for,range,var,const,bool,byte,uint32,error,nil,true,false},
+  morecomment=[l]{//},
+  morestring=[b]",
+  frame=single,
+  rulecolor=\color{framegray},
+  framesep=3pt,
+  backgroundcolor=\color{bgshade},
+  columns=fullflexible,
+  keepspaces=true,
+  breaklines=true,
+  breakatwhitespace=true,
+}
+\lstdefinestyle{shell}{
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\ttfamily,
+  commentstyle=\itshape\color{cmtgreen},
+  stringstyle=\ttfamily,
+  morecomment=[l]{\#},
+  frame=single,
+  rulecolor=\color{framegray},
+  framesep=3pt,
+  backgroundcolor=\color{bgshade},
+  columns=fullflexible,
+  keepspaces=true,
+  breaklines=true,
+}
+
+\tikzset{
+  box/.style={draw,rounded corners=1pt,align=center,inner sep=3pt,
+              minimum height=6.5mm,font=\footnotesize},
+  sbox/.style={box,fill=blue!7},
+  act/.style={box,fill=green!12},
+  mem/.style={box,fill=orange!12},
+  warnb/.style={box,fill=red!8},
+  ghost/.style={box,fill=black!5},
+  fl/.style={-{Stealth[length=4pt]},shorten >=2.5pt,shorten <=2.5pt},
+  fld/.style={-{Stealth[length=4pt]},dashed,shorten >=2.5pt,shorten <=2.5pt},
+  bidi/.style={{Stealth[length=4pt]}-{Stealth[length=4pt]},shorten >=2.5pt,shorten <=2.5pt},
+}
+
+% ---------------------------------------------------------------------------
+\title{Forwarding a YubiKey from a Chromebook\\to a Remote Linux Host\\{\large A Design Study}}
+
+\author{Filip Filmar%
+\thanks{This paper is a design study, not a product description.
+It compares the ways to use a YubiKey that is plugged into a Chromebook
+from a remote Linux host, and recommends one.
+The running example is one WebAuthn login in Chrome on the remote host,
+which the user reaches through Chrome Remote Desktop.
+Every claim about software is marked as verified, with its source, or as an
+assumption. No claim has been tested on a real Chromebook yet; the test
+plan is in Section~\ref{sec:testplan}.}}
+
+\markboth{Design study~~$\cdot$~~November 2026}{YubiKey forwarding from a Chromebook}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A user works on a remote Linux desktop through Chrome Remote Desktop, from a
+Chromebook. The user's YubiKey is plugged into the Chromebook. Chrome Remote
+Desktop does not forward security keys, so web logins that need the key fail
+on the remote desktop. This study compares eleven ways to make the key usable
+on the remote host. They include a userspace USB/IP server, a relay of FIDO
+HID reports over SSH, virtual FIDO devices, agent forwarding, a WebAuthn
+proxy extension, and smart card relays. The study finds one fact that decides
+the design: the ChromeOS Linux container receives a shared USB device only as
+a raw usbfs node, never as a \code{hidraw} node. Existing relays need
+\code{hidraw}. We recommend a relay of FIDO HID reports over SSH, with a new
+key-side component that reads the key through usbfs and refuses commands that
+can erase the key. We recommend agent forwarding for OpenPGP and PIV. We give
+the test plan that must run on a real Chromebook before any product is built.
+\end{abstract}
+
+\begin{IEEEkeywords}
+FIDO2, WebAuthn, CTAPHID, YubiKey, ChromeOS, Crostini, usbfs, uhid, USB/IP,
+SSH, remote desktop, security keys
+\end{IEEEkeywords}
+
+{\footnotesize\tableofcontents}
+
+\input{sections/01_intro.tex}
+\input{sections/02_background.tex}
+\input{sections/03_crostini.tex}
+\input{sections/04_approaches.tex}
+\input{sections/05_comparison.tex}
+\input{sections/06_recommendation.tex}
+\input{sections/07_component.tex}
+\input{sections/08_security.tex}
+\input{sections/09_testplan.tex}
+\input{sections/10_conclusion.tex}
+
+% =====================================================================
+\begin{thebibliography}{30}
+\bibitem{ctap21} FIDO Alliance, ``Client to Authenticator Protocol (CTAP), version 2.1,''
+  Proposed Standard, Jun. 2021. \url{https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-20210615.html}
+\bibitem{ctap22} FIDO Alliance, ``Client to Authenticator Protocol (CTAP), version 2.2,''
+  Jul. 2025, section ``Hybrid''. \url{https://fidoalliance.org/specs/fido-v2.2-ps-20250714/fido-client-to-authenticator-protocol-v2.2-ps-20250714.html}
+\bibitem{webauthn3} W3C, ``Web Authentication, Level 3,'' section ``Relying Party Identifier''.
+  \url{https://www.w3.org/TR/webauthn-3/}
+\bibitem{yk-usb} Yubico, ``YubiKey 5 USB interfaces,'' YubiKey Technical Manual.
+  \url{https://docs.yubico.com/hardware/yubikey/yk-tech-manual/yk5-usb-interface.html}
+\bibitem{tremplin} ChromiumOS, \code{tremplin}, \code{src/chromiumos/tremplin/start\_lxd.go},
+  lines 192 to 228 and 366, commit 744f7e4.
+\bibitem{pb} ChromiumOS, \code{permission\_broker},
+  \code{allow\_conforming\_usb\_device\_rule.cc}.
+  \url{https://chromium.googlesource.com/chromiumos/platform2/+/HEAD/permission_broker/}
+\bibitem{crosusb} Chromium, \code{chrome/browser/ash/usb/cros\_usb\_detector.cc}.
+  \url{https://chromium.googlesource.com/chromium/src/+/main/chrome/browser/ash/usb/cros_usb_detector.cc}
+\bibitem{crosvmdev} crosvm-dev mailing list, thread D5iCnoTk-4k on \code{vmc usb-attach} and \code{vmc key-attach}, Jul. to Aug. 2025.
+  \url{https://groups.google.com/a/chromium.org/g/crosvm-dev/c/D5iCnoTk-4k}
+\bibitem{cros-scc} chromium-os-dev mailing list, threads on Smart Card Connector and
+  USB sharing, 2020 and 2025.
+  \url{https://groups.google.com/a/chromium.org/g/chromium-os-dev/c/2bVDprdrLOY}
+\bibitem{devio} Linux kernel, \code{drivers/usb/core/devio.c}.
+  \url{https://github.com/torvalds/linux/blob/master/drivers/usb/core/devio.c}
+\bibitem{chromefido} Chromium, \code{device/fido/hid/fido\_hid\_discovery.cc},
+  \code{fido\_hid\_device.cc}, and \code{device/fido/public/fido\_constants.cc}.
+\bibitem{crdpol} Chromium, policy definitions \code{RemoteAccessHostAllowGnubbyAuth},
+  \code{WebAuthenticationRemoteProxiedRequestsAllowed},
+  \code{WebAuthenticationRemoteDesktopAllowedOrigins}.
+\bibitem{wap} Chrome for Developers, ``\code{chrome.webAuthenticationProxy}.''
+  \url{https://developer.chrome.com/docs/extensions/reference/api/webAuthenticationProxy}
+\bibitem{fidoforward} txomon (GitHub), \code{fido-forward}, commit 2b7b2ac, Oct. 2026, MIT license.
+  \url{https://github.com/txomon/fido-forward}
+\bibitem{qubes} QubesOS, \code{qubes-app-u2f}, commit 069a20b, Oct. 2026, GPL-2.0+.
+  \url{https://github.com/QubesOS/qubes-app-u2f}
+\bibitem{jiegec} jiegec (GitHub), \code{usbip}, Rust crate, commit d5774284, MIT license.
+  \url{https://github.com/jiegec/usbip}
+\bibitem{usbipdcpp} yunsmall (GitHub), \code{usbipdcpp}, commit 00f4509, LGPL-3.0.
+  \url{https://github.com/yunsmall/usbipdcpp}
+\bibitem{virtualfido} Bulwark ID, \code{virtual-fido}, commit 512d8a3, Jun. 2024, MIT license.
+  \url{https://github.com/bulwarkid/virtual-fido}
+\bibitem{authrelay} Parallel Works, \code{auth-relay}, commit 851f1e9, May 2026.
+  \url{https://github.com/parallelworks/auth-relay}
+\bibitem{vsmartcard} F.~Morgner, \code{vsmartcard}, commit 93286a9, Oct. 2026, GPL-3.0.
+  \url{https://github.com/frankmorgner/vsmartcard}
+\bibitem{openssh} OpenBSD, OpenSSH release notes 8.2, 8.4, 8.9 and 9.3p2, and the
+  \code{ssh-agent(1)} and \code{ssh-add(1)} manual pages. \url{https://www.openssh.com/releasenotes.html}
+\bibitem{agentrestrict} OpenSSH, ``SSH agent restriction.'' \url{https://www.openssh.org/agent-restrict.html}
+\bibitem{gnupgfwd} GnuPG wiki, ``AgentForwarding.'' \url{https://wiki.gnupg.org/AgentForwarding}
+\bibitem{p11kit} p11-kit, ``Sharing PKCS\#11 modules with p11-kit,'' manual, release 0.26.5, BSD-3-Clause.
+  \url{https://p11-glue.github.io/p11-glue/p11-kit/manual/remoting.html}
+\bibitem{systemd} systemd, \code{src/udev/fido\_id/fido\_id.c} and \code{rules.d/60-fido-id.rules}.
+  \url{https://github.com/systemd/systemd}
+\bibitem{usbip-deb} Debian, package \code{usbip}, trixie. \url{https://packages.debian.org/trixie/usbip}
+\end{thebibliography}
+
+\end{document}

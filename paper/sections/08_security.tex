@@ -1,0 +1,39 @@
+% SPDX-License-Identifier: Apache-2.0
+\section{Security}
+\label{sec:security}
+
+Table~\ref{tab:risks} lists the risks and their mitigations. The most
+important one has no technical fix.
+
+\begin{table}[t]
+\centering
+\caption{Risks and mitigations}
+\label{tab:risks}
+\scriptsize
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{27mm}>{\raggedright\arraybackslash}p{6mm}>{\raggedright\arraybackslash}p{44mm}@{}}
+\toprule
+Risk & Where & Mitigation \\
+\midrule
+Remote erases the key or lists and deletes passkeys & B & The policy refuses commands 0x07, 0x09, 0x0A, 0x0C, 0x0D, 0x40, 0x41 and unknown ones. Reset also needs a touch soon after power-up~\cite{ctap21}. \\
+Remote gets an assertion for a site you did not open & B, E3 & No technical fix. Run the relay only when you need it. Touch only for a login you started. Prefer passkeys with a PIN. \\
+Remote guesses the FIDO PIN & B & The key limits PIN tries~\cite{ctap21}. \\
+Remote root gets raw control of the key & A, E4 & Use B for FIDO. Use A only with a fully trusted host. \\
+Other users on the remote host use the virtual key & B & fido-forward's udev rule gives the node to one group only. \\
+The setuid sink is attacked & B & It drops privilege before it reads input and uses no cgo. Review its 610 lines before install. \\
+A forwarded agent signs for any remote process & D & \code{ssh-add -c}, PIV touch policy, \code{ssh-add -h}~\cite{agentrestrict}; gpg restricts the extra socket. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{pitfall}[Phishing through the relay]
+The relying party ID comes from Chrome on the remote host. The key shows no
+site name. A compromised remote host can therefore ask the key for an
+assertion for any site, and a touch approves it. The relay cannot tell a real
+request from a forged one. Only the user's own judgement protects against
+this, so the relay should run only while the user needs it.
+\end{pitfall}
+
+Approach B still keeps the damage smaller than approach A. Under B, a
+compromised remote host can use the key's passkeys while the relay runs and
+the user touches. Under A, it can also erase the PIV and OpenPGP applets and
+change the OTP slots, without any touch.

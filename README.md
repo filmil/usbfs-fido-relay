@@ -5,6 +5,7 @@ A design study: use a YubiKey on a Chromebook (in the Crostini Linux container) 
 * [DESIGN.md](DESIGN.md): the approaches, the comparison, the recommendation, and the open questions.
 * [TESTPLAN.md](TESTPLAN.md): the tests to run on the real Chromebook and the remote host.
 * [research/](research/): the raw research notes, with sources.
+* [paper/](paper/): the same study as an IEEE two-column paper; build it with `bazel build //paper:yubikey-forward`.
 
 ## Build and test
 

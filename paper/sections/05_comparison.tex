@@ -1,0 +1,45 @@
+% SPDX-License-Identifier: Apache-2.0
+\section{Comparison}
+\label{sec:comparison}
+
+Table~\ref{tab:compare} compares the approaches. ``Crostini'' means that the
+approach works in Crostini with no root on ChromeOS, no kernel module, and no
+developer mode. ``Both'' means that the key works on the Chromebook and on the
+remote host at the same time.
+
+\begin{table*}[t]
+\centering
+\caption{Comparison of the approaches. Y: yes. N: no. P: partly. ``a'' marks an assumption.}
+\label{tab:compare}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{24mm}p{30mm}ccccccp{38mm}p{30mm}@{}}
+\toprule
+Approach & Existing software & FIDO2 & OTP & PIV & PGP & Crostini & Both & Main security risk & Timeout risk \\
+\midrule
+A. USB/IP from Crostini & jiegec/usbip (serial, bug \#51); usbipdcpp (async) & Y\,a & Y\,a & Y\,a & Y\,a & P & N & Remote root has raw USB to all applets: reset, PIN exhaustion, OTP changes. No transport authentication. & High for jiegec/usbip; low for usbipdcpp (a) \\
+B. CTAPHID relay, uhid & fido-forward (remote side as is); new usbfs key side & Y & N & N & N & P & N & Remote asks for assertions for any site. Reset and credential management blocked by the new policy. & Low: keepalives pass \\
+B$'$. qubes-app-u2f over SSH & qubes-app-u2f & P & N & N & N & N & N & Built-in command filter & High: no keepalives \\
+C. Virtual device, delegated crypto & virtual-fido, tpm-fido & N & N & N & N & -- & -- & Not possible: a real key cannot sign for it & -- \\
+D. Agent forwarding & OpenSSH, GnuPG, p11-kit & N & N & Y & Y & P & N & Remote uses the agent while the session is open & Low \\
+E1. Hybrid (phone) & Chrome & phone & N & N & N & -- & Y & Low & Needs Bluetooth at the remote host \\
+E2. CRD forwarding & CRD & internal & N & N & N & -- & -- & -- & Not available \\
+E3. WebAuthn proxy extension & auth-relay & Y\,a & N & N & N & N & N & No origin in the proxied request; origin is guessed & Low \\
+E4. Smart card relay & vsmartcard & N & N & Y\,a & Y\,a & P & N & Remote sends any APDU & Low (a) \\
+E5. Chromebook Chrome via SOCKS & Chrome, OpenSSH & Y & N & N & N & Y & Y & Low: the key stays local & Low; only for web apps the remote serves \\
+E6. \code{vmc key-attach} & ChromeOS & U2F & N & N & N & P & Y & As B & No FIDO2 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Three approaches drop out at once. C cannot work, because a real key does not
+sign for another authenticator. E1 and E2 are not available to this user. E6
+lacks FIDO2. Of the rest, only A and B serve goal~1 inside the remote
+desktop, and both depend on Findings~\ref{find:nohidraw}
+and~\ref{find:detach}.
+
+A forwards everything, and B forwards only FIDO. That is the main difference
+in risk. Under A, the remote root user can reset the PIV and OpenPGP applets,
+use up their PIN tries, and rewrite the OTP slots. Under B, the remote root
+user can reach only the FIDO interface, and the relay can refuse the commands
+that change the key.

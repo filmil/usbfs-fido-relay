@@ -1,0 +1,21 @@
+% SPDX-License-Identifier: Apache-2.0
+\section{Conclusion}
+\label{sec:conclusion}
+
+Chrome Remote Desktop does not forward security keys, and it cannot be
+changed. The way to use a Chromebook's YubiKey on a remote Linux desktop is
+to relay the key's FIDO channel over SSH into a virtual FIDO key that
+\code{uhid} creates on the remote host.
+
+One fact shapes the design. The ChromeOS Linux container receives a shared
+key only as a usbfs node, so every existing relay, which reads
+\code{hidraw}, fails there. A small new key-side program that reads the key
+through usbfs closes the gap. It reuses fido-forward's remote half and adds a
+policy that refuses commands that can erase or change the key. OpenPGP and
+PIV use agent forwarding instead.
+
+The next step is the probe on a real Chromebook. It answers the one question
+that this study cannot answer from source code: whether the container can
+claim the FIDO interface. If it can, the remaining work is about 400 lines of
+Go. If it cannot, the only remaining option is to log in with the
+Chromebook's own Chrome.

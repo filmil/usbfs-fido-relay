@@ -1,0 +1,77 @@
+% SPDX-License-Identifier: Apache-2.0
+\section{The new component}
+\label{sec:component}
+
+No existing tool reads a FIDO key through usbfs and relays it. The smallest
+new component, \code{ffwd-usbfs}, fills that gap. Table~\ref{tab:component}
+gives its design. We write it only after the probe passes on a real
+Chromebook (Section~\ref{sec:testplan}).
+
+\begin{table}[t]
+\centering
+\caption{Design of \code{ffwd-usbfs}}
+\label{tab:component}
+\scriptsize
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{15mm}>{\raggedright\arraybackslash}p{63mm}@{}}
+\toprule
+Item & Design \\
+\midrule
+Purpose & Key side of fido-forward for a host with a usbfs node and no \code{hidraw} node \\
+Language & Go 1.27, \code{CGO\_ENABLED=0}, built with Bazel (\code{rules\_go}) \\
+Libraries & \code{golang.org/x/sys/unix}, and the packages \code{ctaphid} and \code{usbfs} of this study \\
+Command & \code{ffwd-usbfs [-d NODE] [--allow-management] HOST} \\
+Transport & Starts \code{ssh -T HOST fido-forward --sink} over a socketpair, as fido-forward does \\
+Wire & fido-forward v1: read \code{FFWD\textbackslash x01}, write it back, then raw 64-byte reports \\
+USB & Find the HID interface with page 0xF1D0; detach \code{usbhid}; claim it; one reader of interrupt IN, one writer of interrupt OUT \\
+Policy & Join each request; answer a refused command with CTAP2 status \code{0x27} (operation denied); never send it to the key \\
+Teardown & \code{CTAPHID\_CANCEL} on each channel, release, attach \code{usbhid} again \\
+Size & About 400 lines with tests (assumption) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Parts that exist now}
+
+The study's workspace already holds the parts that need the most care. Both
+are pure Go with unit tests, and both build with Bazel.
+
+\paragraph{\code{ctaphid}} It splits a message into 64-byte reports and joins
+them again. Its \code{Policy} type decides which CTAP2 commands pass.
+Listing~\ref{lst:policy} shows the decision.
+
+\begin{lstlisting}[style=go,caption={The command policy in package \code{ctaphid}},label={lst:policy}]
+// Allowed reports whether the policy passes the message to the key.
+func (p Policy) Allowed(m Message) bool {
+  if m.Command != CmdCBOR || len(m.Payload) == 0 {
+    return true // framing (INIT, PING, CANCEL) or U2F
+  }
+  switch m.Payload[0] {
+  case AuthMakeCredential, AuthGetAssertion, AuthGetInfo,
+    AuthClientPIN, AuthGetNextAssertion, AuthSelection:
+    return true
+  case AuthReset, AuthCredentialManagement, AuthBioEnrollment,
+    AuthConfig, AuthLargeBlobs, AuthCredMgmtPreview,
+    AuthBioEnrollPreview:
+    return p.AllowManagement
+  default:
+    return false // unknown commands are refused
+  }
+}
+\end{lstlisting}
+
+\paragraph{\code{usbfs}} It opens a usbfs node, parses the descriptors,
+reads a HID report descriptor, detaches and attaches the kernel driver,
+claims an interface, and runs interrupt transfers. A unit test checks that
+each \code{ioctl} number that the code computes from its structure sizes
+equals the number in \code{<linux/usbdevice\_fs.h>}.
+
+\paragraph{\code{fido-probe}} It uses both packages. It finds the YubiKey,
+detaches \code{usbhid} from the FIDO interface, sends \code{CTAPHID\_INIT}
+and \code{getInfo}, and attaches the driver again. Both commands read only.
+
+\begin{tip}
+The first version of \code{ffwd-usbfs} can read the interrupt IN endpoint in
+a loop with a 200\,ms timeout. A later version can keep an IN transfer
+pending at all times with asynchronous URBs (\code{USBDEVFS\_SUBMITURB} and
+\code{USBDEVFS\_REAPURB}).
+\end{tip}
