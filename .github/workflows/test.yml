@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: Apache-2.0
+# Builds everything (the Go packages, the four fido-probe binaries and the
+# paper) and runs the tests. Bazel provides every tool, including Go and TeX,
+# so the runner installs nothing but Bazelisk.
+name: test
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "23 6 * * 1" # weekly, Monday 06:23 UTC
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bazelbuild/setup-bazelisk@v3
+      # The cache key holds the date, so the cache lasts at most 24 hours.
+      - name: Date for the cache key
+        id: date
+        run: echo "day=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/bazel-disk-cache
+            ~/.cache/bazel-repository-cache
+          key: ${{ runner.os }}-bazel-${{ steps.date.outputs.day }}-${{ hashFiles('MODULE.bazel', 'go.sum') }}
+      - name: Build
+        run: >
+          bazel build //...
+          --disk_cache=$HOME/.cache/bazel-disk-cache
+          --repository_cache=$HOME/.cache/bazel-repository-cache
+      - name: Test
+        run: >
+          bazel test //...
+          --disk_cache=$HOME/.cache/bazel-disk-cache
+          --repository_cache=$HOME/.cache/bazel-repository-cache

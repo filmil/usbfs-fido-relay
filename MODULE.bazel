@@ -25,3 +25,31 @@ use_repo(toolchains, "zig_sdk")
 
 register_toolchains("@zig_sdk//toolchain:linux_amd64_gnu.2.31")
 
+# The paper builds with a downloaded TeX distribution (TinyTeX) and PDF tools,
+# so neither a developer machine nor CI needs TeX installed. TinyTeX lacks
+# some packages that the paper loads; they are installed when the toolchain
+# is fetched.
+hermetic_latex = use_extension("@rules_latex_host//latex:extensions.bzl", "hermetic_latex")
+hermetic_latex.toolchain(
+    texlive_packages = [
+        "ieeetran",
+        "pgf",
+        "booktabs",
+        "listings",
+        "enumitem",
+        "multirow",
+        "lm",
+        "microtype",
+        "cite",
+        "float",
+        "xcolor",
+        "tools",
+        "amsmath",
+        "amscls",
+        "hyperref",
+        "url",
+    ],
+)
+use_repo(hermetic_latex, "hermetic_latex")
+
+register_toolchains("@hermetic_latex//:all")
