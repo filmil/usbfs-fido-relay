@@ -101,7 +101,11 @@ func run(args []string) int {
 	if s := os.Getenv("FIDO_FORWARD_SSH"); s != "" {
 		sshBin = s
 	}
-	ssh := exec.Command(sshBin, "-T", "-o", "ServerAliveInterval=5", "-o", "ServerAliveCountMax=3", "--", host, remote+" --sink")
+	// ClearAllForwardings: the relay's connection must not take the
+	// port forwards that ~/.ssh/config sets for HOST. Otherwise a second
+	// ssh to HOST cannot bind them while the relay runs, and with
+	// ExitOnForwardFailure it fails.
+	ssh := exec.Command(sshBin, "-T", "-o", "ServerAliveInterval=5", "-o", "ServerAliveCountMax=3", "-o", "ClearAllForwardings=yes", "--", host, remote+" --sink")
 	ssh.Stderr = os.Stderr
 	in, err := ssh.StdinPipe()
 	if err != nil {
