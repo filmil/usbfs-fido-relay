@@ -24,13 +24,12 @@ uname -m
 On the build host, in the workspace directory:
 
 ```sh
-# amd64 Chromebook
-bazel build //cmd/fido-probe --@rules_go//go/config:pure --platforms=@rules_go//go/toolchain:linux_amd64
-# arm64 Chromebook
-bazel build //cmd/fido-probe --@rules_go//go/config:pure --platforms=@rules_go//go/toolchain:linux_arm64
+bazel build //cmd/fido-probe:fido-probe_linux_amd64   # amd64 Chromebook
+bazel build //cmd/fido-probe:fido-probe_linux_arm64   # arm64 Chromebook
+bazel cquery //cmd/fido-probe:fido-probe_linux_amd64 --output=files   # prints the binary's path
 ```
 
-The binary is `bazel-bin/cmd/fido-probe/fido-probe_/fido-probe`.
+A release of this repository also has both binaries.
 It is static, so it needs no libraries in penguin.
 Copy it to penguin, for example with `scp` from penguin, or through the Files app into "Linux files".
 
@@ -55,7 +54,7 @@ ls -l /dev/hidraw* 2>&1
 Expected result:
 
 * `lsusb` shows `1050:` (Yubico).
-* The key's node under `/dev/bus/usb` has mode `crw-rw-rw-`.
+* The key's node under `/dev/bus/usb` exists. On the tested Chromebook it was `crw-rw-r-- root root`, so the probe needs `sudo`.
 * `/dev/hidraw*` does not exist (DESIGN.md, F1).
 
 Record:
@@ -74,8 +73,12 @@ In penguin, in the directory with the probe:
 
 ```sh
 chmod +x fido-probe
-./fido-probe
+sudo ./fido-probe
 ```
+
+The node is writable only by root, so run the probe with `sudo`.
+Without `sudo` it reports that it has no permission to open the node.
+To name the device, give its path: `sudo ./fido-probe /dev/bus/usb/001/002`.
 
 The probe sends CTAPHID_INIT and authenticatorGetInfo.
 These commands read only.
@@ -96,7 +99,7 @@ authenticatorGetInfo: ... bytes of CBOR, ...
   version: U2F_V2
   version: FIDO_2_0
   version: FIDO_2_1
-PASS: the FIDO interface works through usbfs
+PASS: the FIDO interface works from this machine
 ```
 
 Interface numbers and endpoint addresses can be different.
@@ -266,9 +269,9 @@ Fill in one row for each test.
 
 | Test | Date | Chromebook model and ChromeOS version | Result | Notes |
 |---|---|---|---|---|
-| T0 | | | | |
-| T1 | | | | |
-| T2 | | | | |
+| T0 | 2026-11-09 | Chromebook, ChromeOS version not recorded | `x86_64` (amd64) | Probe from pre-release `probe-test-1` |
+| T1 | 2026-11-09 | same | Pass, with a Google Titan key (`18d1:5026`, "tk-x001") in place of the YubiKey | One shared device, mode `crw-rw-r-- root root` (0664), not 0666; no `/dev/hidraw*` |
+| T2 | 2026-11-09 | same | **Pass** with `sudo`: kernel driver detached from interface 0, interface claimed, usage page 0xF1D0, endpoints in 81 out 01, CTAPHID_INIT answered in 3 ms, driver attached again | The Titan key is U2F only (capabilities 03, no CBOR), so getInfo was not sent. Without `sudo` the probe could not open the node and reported no device. Repeat with the YubiKey for FIDO2. |
 | T3 | | | | |
 | T4 | | | | |
 | T5 | | | | |

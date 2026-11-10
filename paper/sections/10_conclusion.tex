@@ -14,8 +14,7 @@ through usbfs closes the gap. It reuses fido-forward's remote half and adds a
 policy that refuses commands that can erase or change the key. OpenPGP and
 PIV use agent forwarding instead.
 
-The next step is the probe on a real Chromebook. It answers the one question
-that this study cannot answer from source code: whether the container can
-claim the FIDO interface. If it can, the remaining work is about 400 lines of
-Go. If it cannot, the only remaining option is to log in with the
-Chromebook's own Chrome.
+The probe on a real Chromebook answered the one question that source code
+could not: the container can claim a security key's FIDO interface, as root.
+The remaining work is about 400 lines of Go for the relay, and a test of
+FIDO2 with the YubiKey, since the key in the first test spoke only U2F.

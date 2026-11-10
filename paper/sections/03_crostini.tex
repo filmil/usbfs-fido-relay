@@ -52,7 +52,7 @@ refusal ends approaches A and B on that Chromebook.
 \begin{finding}
 \label{find:nohidraw}
 The \code{penguin} container receives a shared USB device only as its usbfs
-node, \code{/dev/bus/usb/BBB/DDD}, with mode \code{0666}. It receives no
+node, \code{/dev/bus/usb/BBB/DDD}. It receives no
 \code{hidraw} node. The container manager, tremplin, passes only the uevents
 of the subsystems block, tty and usb into the container~\cite{tremplin}
 (verified, two independent reads of the source).
@@ -73,8 +73,11 @@ interface. The kernel performs no capability check for this
 
 Together, Findings~\ref{find:nohidraw} and~\ref{find:detach} suggest that a
 process in \code{penguin} can detach \code{usbhid} from the FIDO interface,
-claim it, and talk CTAPHID through usbfs. Nobody has reported this yet
-(assumption). The probe in Section~\ref{sec:testplan} tests it.
+claim it, and talk CTAPHID through usbfs. Test T2 confirmed this on one
+Chromebook (Section~\ref{sec:testplan}): as root, the probe detached the
+driver from a FIDO key, claimed the interface, and got a reply to
+\code{CTAPHID\_INIT} in 3\,ms. On that Chromebook the node had mode
+\code{0664}, owned by root, so the relay needs root in the container.
 
 \subsection{The key cannot serve both sides}
 

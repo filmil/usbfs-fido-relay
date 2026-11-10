@@ -5,6 +5,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -48,8 +49,14 @@ func findYubico() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	var denied []string
 	for _, n := range nodes {
 		h, err := usbfs.Open(n)
+		if errors.Is(err, os.ErrPermission) {
+			// On ChromeOS the shared node is 0664 root:root.
+			denied = append(denied, n)
+			continue
+		}
 		if err != nil {
 			continue
 		}
@@ -58,6 +65,9 @@ func findYubico() (string, error) {
 		if err == nil && d.VendorID == 0x1050 {
 			return n, nil
 		}
+	}
+	if len(denied) > 0 {
+		return "", fmt.Errorf("no Yubico device found, and no permission to open %v; run with sudo, or name the device", denied)
 	}
 	return "", fmt.Errorf("no Yubico device among %d usbfs nodes; on ChromeOS, is the key shared with Linux?", len(nodes))
 }

@@ -2,9 +2,12 @@
 \section{Open questions and test plan}
 \label{sec:testplan}
 
-No claim in this paper has been tested on a real Chromebook yet.
-Table~\ref{tab:tests} lists the open questions and the tests that answer
-them. The workspace file \code{TESTPLAN.md} gives the exact commands.
+Tests T0 to T2 ran on a Chromebook on 2026-11-09, with a Google Titan key
+in place of the YubiKey. The container saw the key only as a usbfs node with
+mode \code{0664}, and no \code{hidraw} node. As root, the probe detached the
+kernel driver, claimed the FIDO interface, and got a \code{CTAPHID\_INIT}
+reply in 3\,ms. The Titan key speaks only U2F, so FIDO2 is still to be
+tested with the YubiKey. Table~\ref{tab:tests} lists all the questions. The workspace file \code{TESTPLAN.md} gives the exact commands.
 
 \begin{table}[t]
 \centering
@@ -16,9 +19,9 @@ them. The workspace file \code{TESTPLAN.md} gives the exact commands.
 \# & Question & Test \\
 \midrule
 Q1 & Does ChromeOS share the YubiKey with Linux on this model? & T1 \\
-Q2 & Does the container see the usbfs node with mode 0666? & T1 \\
-Q3 & Can the container detach \code{usbhid}, claim the FIDO interface, and run CTAPHID? & T2 \\
-Q4 & Is the Chromebook amd64 or arm64? & T0 \\
+Q2 & Does the container see the usbfs node, and with which mode? & T1: yes, 0664 \\
+Q3 & Can the container detach \code{usbhid}, claim the FIDO interface, and run CTAPHID? & T2: yes, as root \\
+Q4 & Is the Chromebook amd64 or arm64? & T0: amd64 \\
 Q5 & Does SSH latency stay far below Chrome's 20\,s device timeout? & T5 \\
 Q6 & Can \code{pcscd} hold the CCID interface while the relay runs? & T6 \\
 Q7 & Can Chrome in the CRD session open the virtual \code{hidraw} node? & T4 \\
@@ -34,15 +37,14 @@ all, and they take about ten minutes. The probe needs no installation in
 
 \begin{lstlisting}[style=shell,caption={Tests T0 to T2},label={lst:probe},float=tb]
 # build host, in the workspace; pick the Chromebook's CPU
-bazel build //cmd/fido-probe \
-  --@rules_go//go/config:pure \
-  --platforms=@rules_go//go/toolchain:linux_amd64
+bazel build \
+  //cmd/fido-probe:fido-probe_linux_amd64
 # penguin, after sharing the key in Manage USB devices
 uname -m
 ls -l /dev/bus/usb/*/* /dev/hidraw*
-./fido-probe
+sudo ./fido-probe_linux_amd64
 # expected last line:
-# PASS: the FIDO interface works through usbfs
+# PASS: the FIDO interface works from this machine
 \end{lstlisting}
 
 If T1 fails, ChromeOS refuses the key, and only approach E5 remains. If T2
