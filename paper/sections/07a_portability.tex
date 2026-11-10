@@ -1,0 +1,74 @@
+% SPDX-License-Identifier: Apache-2.0
+\section{Portability}
+\label{sec:portability}
+
+The relay has two sides, and each platform answers differently for each
+side. The \term{key side} reads the real key. The \term{use side} makes a
+virtual key for a browser. Table~\ref{tab:ports} gives the answers.
+
+\begin{table}[t]
+\centering
+\caption{What each platform can do}
+\label{tab:ports}
+\scriptsize
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{11mm}>{\raggedright\arraybackslash}p{33mm}>{\raggedright\arraybackslash}p{33mm}@{}}
+\toprule
+Platform & Key side & Use side \\
+\midrule
+Linux & Yes: \code{/dev/hidraw}, fido-forward's source as it is. & Yes: \code{/dev/uhid}, fido-forward's sink. \\
+ChromeOS & Yes, if the probe passes: usbfs only (Finding~\ref{find:nohidraw}). & No: the Crostini kernel has no UHID or HIDRAW option~\cite{termina} (verified). \\
+macOS & Yes: IOKit, pure Go through purego~\cite{usbhid}. & Hard: needs an entitlement that Apple must approve~\cite{iohidres} (verified). \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{macOS as the key side}
+
+On macOS a process talks to a HID device through IOKit. The library
+rafaelmartins/usbhid~\cite{usbhid} (BSD-3) calls IOKit through purego, so it
+needs no cgo, and we cross-built it for both Mac CPUs with Bazel on Linux
+(verified). It opens a device without seizing it. libfido2 seizes the device
+instead~\cite{libfido2osx} (verified), so a relay built on libfido2 would
+lock out the Mac's own browser. A relay that does not seize should let the
+Mac's Chrome use the key at the same time (assumption; Chromium does not seize
+either~\cite{libfido2osx}).
+
+Two permission rules matter. macOS asks for Input Monitoring only for
+keyboards, mice and touchpads, not for the FIDO interface~\cite{iohidfam}
+(verified). A process that is not root can open the device only while its user
+has a session at the Mac's screen~\cite{iohidfam} (verified). A relay that SSH
+starts on a Mac therefore works while the user is logged in there.
+
+\subsection{macOS and ChromeOS as the use side}
+
+To make a virtual HID device, macOS requires the entitlement
+\code{com.apple.developer.hid.virtual.device}, also for root~\cite{iohidres}
+(verified). Apple grants it on request, after review, and one public request
+waited 2.5 months. The program must then be a signed app with a provisioning
+profile (assumption). DriverKit offers no shortcut: it needs Apple-granted
+entitlements too. A Mac as the remote host can avoid this with approach E3, a
+Chrome extension, which needs no entitlement but has the origin problem of
+Section~\ref{sec:approaches}.
+
+ChromeOS cannot be the use side. The Crostini kernel has no \code{uhid}
+module, and Chrome on ChromeOS sees only the host's devices (assumption).
+
+\subsection{What it takes}
+
+\begin{itemize}
+\item A key-side interface with four methods (open, read a report, write a
+      report, close), and one implementation per platform, chosen by Go
+      build tags. The probe already has this shape: \code{open\_linux.go}
+      uses usbfs and \code{open\_darwin.go} uses IOKit.
+\item The common client: the FFWD wire format, the command policy, and
+      starting \code{ssh}. About 250 lines.
+\item Bazel targets for each platform. One \code{bazel build //...} on Linux
+      now builds the probe for Linux on amd64 and arm64 and for macOS on
+      amd64 and arm64, all static and cgo free (verified).
+\item For a Mac as the remote host: a signed Swift helper with the
+      entitlement, Apple's approval, and a developer account.
+\end{itemize}
+
+The cheapest useful product has a key side on all three platforms and a use
+side on Linux only. That covers a user who sits at a Chromebook or a Mac and
+works on a Linux host.

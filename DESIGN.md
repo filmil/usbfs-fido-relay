@@ -222,3 +222,40 @@ A later version can use asynchronous URBs (`USBDEVFS_SUBMITURB`, `USBDEVFS_REAPU
 
 Build and test: `bazel test //...`.
 Build the probe for the Chromebook: see TESTPLAN.md, T0.
+
+## 10. Portability across ChromeOS, macOS and Linux
+
+The relay has two sides, and each side has a different answer.
+The key side is where the YubiKey is plugged in.
+The use side is where the virtual key appears for a browser.
+The raw notes are in [research/F-portability.md](research/F-portability.md).
+
+### 10.1 What each platform can do
+
+| Platform | Key side (read the real key) | Use side (make a virtual key) |
+|---|---|---|
+| Linux | Yes. `/dev/hidraw` through fido-forward's source, as it is. Over SSH it needs a group rule, unless the same user is logged in at the seat (systemd uaccess). Verified. | Yes. `/dev/uhid` through fido-forward's sink, setuid. Verified. |
+| ChromeOS (Crostini) | Yes, if the probe passes. usbfs only, through the new `ffwd-usbfs` (DESIGN.md section 6). The key is not available to ChromeOS while shared. | No. The termina kernel has no UHID or HIDRAW option (verified), and ChromeOS Chrome sees only host devices (assumption). |
+| macOS | Yes. IOKit through rafaelmartins/usbhid, pure Go with purego, no cgo. It opens the key without seizing it, so the Mac's own Chrome can use the key at the same time (assumption). No Input Monitoring prompt for the FIDO interface (verified). No root, if the same user is logged in at the Mac's screen (verified). | Hard. A virtual HID device needs the entitlement `com.apple.developer.hid.virtual.device`, which Apple must approve, even for root (verified). It needs a signed app bundle with a provisioning profile. Alternative: approach E3 (a Chrome extension with `chrome.webAuthenticationProxy`), which needs no entitlement but cannot verify the origin. |
+
+### 10.2 What it takes
+
+| Work item | Platform | Size | Blocked by |
+|---|---|---|---|
+| A key-side backend interface: `Open`, `ReadReport`, `WriteReport`, `Close`, with 64-byte reports. One implementation per platform, chosen by Go build tags. | all | about 50 lines | nothing |
+| hidraw backend | Linux | about 100 lines, or reuse fido-forward's source | nothing |
+| usbfs backend | ChromeOS, also Linux | about 150 lines on top of the `usbfs` package | probe T2 |
+| IOKit backend with rafaelmartins/usbhid | macOS | about 100 lines | nothing; builds from Linux with Bazel (verified) |
+| Common client: FFWD protocol, `ctaphid.Policy`, starting `ssh` | all | about 250 lines | nothing |
+| Bazel targets for `linux_amd64`, `linux_arm64`, `darwin_amd64`, `darwin_arm64`, all with `--@rules_go//go/config:pure` | all | BUILD files and release workflow | nothing |
+| Use side on macOS: a signed Swift helper with the HID virtual device entitlement, which speaks the FFWD protocol on stdio | macOS | about 300 lines of Swift, an Apple Developer account, and Apple's approval | Apple; one public request waited 2.5 months |
+| Hardware tests on each key-side platform | all | test plan rows | a Mac and a Linux machine with a key |
+
+The cheapest portable product is: key side on all three platforms, use side on Linux only.
+That covers the case in this study (a Chromebook or a Mac in front of the user, and a Linux remote host).
+A Mac as the remote host is the only case that needs Apple.
+
+### 10.3 Build
+
+All key-side backends are pure Go, so one Linux machine builds all four targets with Bazel, and no Apple SDK is needed.
+Windows is out of scope: since Windows 10 1903, raw FIDO HID access needs Administrator (verified).
