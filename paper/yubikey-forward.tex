@@ -138,9 +138,9 @@ the design: the ChromeOS Linux container receives a shared USB device only as
 a raw usbfs node, never as a \code{hidraw} node. Existing relays need
 \code{hidraw}. We recommend a relay of FIDO HID reports over SSH, with a new
 key-side component that reads the key through usbfs and refuses commands that
-can erase the key. We recommend agent forwarding for OpenPGP and PIV. A probe on a real
-Chromebook confirmed that the container can claim a security key's FIDO
-interface and talk to it in 3\,ms.
+can erase the key. We recommend agent forwarding for OpenPGP and PIV. On a real Chromebook,
+the relay let Chrome on a remote host register and sign in with the
+YubiKey.
 \end{abstract}
 
 \begin{IEEEkeywords}

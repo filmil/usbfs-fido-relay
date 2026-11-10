@@ -158,7 +158,7 @@ One WebAuthn login:
 ## 6. The smallest new component: `ffwd-usbfs`
 
 Written after probe test T2 passed (TESTPLAN.md): `cmd/ffwd-usbfs`, with the relay in `relay/` and the key access in `usbfs/fido.go`.
-It is not yet tested end to end (T4).
+It passed the end-to-end test T4 on 2026-11-09: a WebAuthn registration and sign-in in Chrome on a remote host, with the YubiKey on a Chromebook.
 
 | Item | Design |
 |---|---|
@@ -204,9 +204,9 @@ A later version can use asynchronous URBs (`USBDEVFS_SUBMITURB`, `USBDEVFS_REAPU
 | Q2 | Does the container see the key under `/dev/bus/usb`, with mode 0666? | T1 |
 | Q3 | Can a process in the container detach usbhid from the FIDO interface, claim it, and run CTAPHID_INIT and authenticatorGetInfo? | T2: **yes, as root** (2026-11-09; Titan key and YubiKey 5, FIDO 2.1) |
 | Q4 | Is the Chromebook amd64 or arm64? | T0 (`uname -m`) |
-| Q5 | Does the round trip over SSH stay well below Chrome's 20 s device timeout during a touch? | T5 |
+| Q5 | Does the round trip over SSH stay well below Chrome's 20 s device timeout during a touch? | T4: **yes**, a touch-gated registration and sign-in worked; T5 measures it |
 | Q6 | Can pcscd claim the CCID interface while the relay holds the FIDO interface? | T6 |
-| Q7 | Does Chrome in the CRD session get read and write access to the virtual hidraw node? | T4 |
+| Q7 | Does Chrome in the CRD session get read and write access to the virtual hidraw node? | T4: **yes**, through the `fido-forward-users` group, once the CRD session has the group (2026-11-09) |
 | Q8 | Does the key come back to ChromeOS when you stop sharing it, with no replug? | T7: **yes** after the probe (2026-11-09); repeat after T4 |
 | Q9 | Does the Smart Card Connector app need to be off? | T1 |
 
