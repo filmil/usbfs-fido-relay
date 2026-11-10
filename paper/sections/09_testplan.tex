@@ -2,12 +2,12 @@
 \section{Open questions and test plan}
 \label{sec:testplan}
 
-Tests T0 to T2 ran on a Chromebook on 2026-11-09, with a Google Titan key
-in place of the YubiKey. The container saw the key only as a usbfs node with
+Tests T0 to T2 ran on a Chromebook on 2026-11-09, first with a Google Titan
+key and then with a YubiKey~5 (firmware 5.8.0). The container saw the key only as a usbfs node with
 mode \code{0664}, and no \code{hidraw} node. As root, the probe detached the
 kernel driver, claimed the FIDO interface, and got a \code{CTAPHID\_INIT}
-reply in 3\,ms. The Titan key speaks only U2F, so FIDO2 is still to be
-tested with the YubiKey. Table~\ref{tab:tests} lists all the questions. The workspace file \code{TESTPLAN.md} gives the exact commands.
+reply in 3 to 4\,ms. With the YubiKey, \code{authenticatorGetInfo} took
+230\,ms and reported U2F, FIDO~2.0 and FIDO~2.1. Table~\ref{tab:tests} lists all the questions. The workspace file \code{TESTPLAN.md} gives the exact commands.
 
 \begin{table}[t]
 \centering

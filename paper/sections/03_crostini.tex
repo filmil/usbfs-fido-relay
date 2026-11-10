@@ -76,7 +76,8 @@ process in \code{penguin} can detach \code{usbhid} from the FIDO interface,
 claim it, and talk CTAPHID through usbfs. Test T2 confirmed this on one
 Chromebook (Section~\ref{sec:testplan}): as root, the probe detached the
 driver from a FIDO key, claimed the interface, and got a reply to
-\code{CTAPHID\_INIT} in 3\,ms. On that Chromebook the node had mode
+\code{CTAPHID\_INIT} in 3\,ms. With a YubiKey~5, \code{authenticatorGetInfo}
+also worked and reported FIDO~2.1. On that Chromebook the node had mode
 \code{0664}, owned by root, so the relay needs root in the container.
 
 \subsection{The key cannot serve both sides}

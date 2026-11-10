@@ -1,7 +1,7 @@
 # YubiKey forwarding from a Chromebook to a remote host: design study
 
 Status: study, 2026-11-10.
-Tests T0 to T2 ran on a Chromebook on 2026-11-09 with a U2F-only Google Titan key; they passed (TESTPLAN.md, results table).
+Tests T0 to T2 ran on a Chromebook on 2026-11-09 with a U2F-only Google Titan key; they passed, with a U2F-only Google Titan key and with a YubiKey 5 (TESTPLAN.md, results table).
 The test plan is in [TESTPLAN.md](TESTPLAN.md).
 The raw research notes, with all sources, are in [research/](research/).
 
@@ -41,7 +41,7 @@ It forwards all YubiKey functions, but it gives the remote root user raw control
 
 F1 and F5 together gave the main open question.
 Test T2 answered it on 2026-11-09: as root, a process in the container detached usbhid from a FIDO key's interface, claimed it, and got a CTAPHID_INIT reply in 3 ms (TESTPLAN.md).
-The key in that test was a U2F-only Google Titan key, so FIDO2 is still to be tested with the YubiKey.
+The first key was a U2F-only Google Titan key. A second run with a YubiKey 5 (firmware 5.8.0) passed too: CTAPHID_INIT in 4 ms, and authenticatorGetInfo in 230 ms reported FIDO_2_0 and FIDO_2_1.
 
 ## 3. Comparison of approaches
 
@@ -201,7 +201,7 @@ A later version can use asynchronous URBs (`USBDEVFS_SUBMITURB`, `USBDEVFS_REAPU
 |---|---|---|
 | Q1 | Does ChromeOS let you share the YubiKey with Linux on this Chromebook? Does it return ALLOW_WITH_DETACH, LOCKDOWN or DENY? | T1 |
 | Q2 | Does the container see the key under `/dev/bus/usb`, with mode 0666? | T1 |
-| Q3 | Can a process in the container detach usbhid from the FIDO interface, claim it, and run CTAPHID_INIT and authenticatorGetInfo? | T2: **yes, as root** (2026-11-09, Titan key, U2F only); repeat getInfo with the YubiKey |
+| Q3 | Can a process in the container detach usbhid from the FIDO interface, claim it, and run CTAPHID_INIT and authenticatorGetInfo? | T2: **yes, as root** (2026-11-09; Titan key and YubiKey 5, FIDO 2.1) |
 | Q4 | Is the Chromebook amd64 or arm64? | T0 (`uname -m`) |
 | Q5 | Does the round trip over SSH stay well below Chrome's 20 s device timeout during a touch? | T5 |
 | Q6 | Can pcscd claim the CCID interface while the relay holds the FIDO interface? | T6 |

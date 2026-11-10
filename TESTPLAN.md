@@ -271,7 +271,8 @@ Fill in one row for each test.
 |---|---|---|---|---|
 | T0 | 2026-11-09 | Chromebook, ChromeOS version not recorded | `x86_64` (amd64) | Probe from pre-release `probe-test-1` |
 | T1 | 2026-11-09 | same | Pass, with a Google Titan key (`18d1:5026`, "tk-x001") in place of the YubiKey | One shared device, mode `crw-rw-r-- root root` (0664), not 0666; no `/dev/hidraw*` |
-| T2 | 2026-11-09 | same | **Pass** with `sudo`: kernel driver detached from interface 0, interface claimed, usage page 0xF1D0, endpoints in 81 out 01, CTAPHID_INIT answered in 3 ms, driver attached again | The Titan key is U2F only (capabilities 03, no CBOR), so getInfo was not sent. Without `sudo` the probe could not open the node and reported no device. Repeat with the YubiKey for FIDO2. |
+| T2 | 2026-11-09 | same | **Pass** with `sudo`: kernel driver detached from interface 0, interface claimed, usage page 0xF1D0, endpoints in 81 out 01, CTAPHID_INIT answered in 3 ms, driver attached again | Titan key, U2F only (capabilities 03, no CBOR), so getInfo was not sent. Without `sudo` the probe could not open the node and reported no device. |
+| T2 | 2026-11-09 | same | **Pass** with `sudo`, YubiKey 5 (`1050:0407`, firmware 5.8.0): interfaces 0 (HID), 1 (HID), 2 (CCID); interface 1 detached and claimed, usage page 0xF1D0, endpoints in 84 out 04; CTAPHID_INIT in 4 ms, capabilities 05 (CBOR); authenticatorGetInfo 569 bytes in 230 ms; versions U2F_V2, FIDO_2_0, FIDO_2_1 | Matches the expected output above. Q3 is answered for FIDO2. |
 | T3 | | | | |
 | T4 | | | | |
 | T5 | | | | |
