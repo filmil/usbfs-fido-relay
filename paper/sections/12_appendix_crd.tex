@@ -1,0 +1,151 @@
+% SPDX-License-Identifier: Apache-2.0
+\section{How Chrome Remote Desktop forwards WebAuthn}
+\label{app:crd}
+
+Chrome Remote Desktop (CRD) has its own way to use a security key from a
+remote host. It does not forward the key. It forwards each WebAuthn request
+to the client, and the client's own Chrome runs it. On a Chromebook the key
+then stays with ChromeOS: no Linux container, no root, and no setuid program
+on the host. Google opens this path to \term{managed} accounts only. This
+appendix explains how it works, what an organization must configure, and
+what we could not verify. The Chromium sources are at commit
+\code{2b88984cf66d} (2026-11-10)~\cite{crdhost,crdclient}.
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[font=\scriptsize]
+  \tikzset{n/.style={box,text width=24mm,minimum height=9mm}}
+  \node[sbox,n] (pg) at (0,0) {Web page in\\Google Chrome};
+  \node[act,n] (ext) at (4.6,0) {CRD Security Key\\extension};
+  \node[act,n] (nm) at (9.2,0) {\code{remote-webauthn}\\native host};
+  \node[act,n] (h) at (13.8,0) {CRD host\\process};
+  \draw[fl] (pg) -- node[above]{proxy} node[below]{API} (ext);
+  \draw[fl] (ext) -- node[above]{native} node[below]{messaging} (nm);
+  \draw[fl] (nm) -- node[above]{Mojo IPC} (h);
+  \node[act,n] (cl) at (13.8,-2.6) {CRD web client\\(a web page)};
+  \node[sbox,n] (wa) at (7.7,-2.6) {ChromeOS Chrome\\WebAuthn};
+  \node[mem,n] (yk) at (2.3,-2.6) {YubiKey};
+  \draw[fl] (h) -- node[right,align=left]{WebRTC data channel\\\code{remote-webauthn}} (cl);
+  \draw[fl] (cl) -- node[above]{WebAuthn call with} node[below]{\code{remoteClientDataJSON}} (wa);
+  \draw[fl] (wa) -- node[above]{USB HID,} node[below]{native} (yk);
+  \begin{scope}[on background layer]
+    \node[draw,dashed,rounded corners,inner sep=6pt,fit=(pg)(h),
+          label={[font=\scriptsize]above:Remote host (Linux, CRD session)}] {};
+    \node[draw,dashed,rounded corners,inner sep=6pt,fit=(yk)(cl),
+          label={[font=\scriptsize]below:Chromebook (enrolled; user and device in the same organization)}] {};
+  \end{scope}
+\end{tikzpicture}
+\caption{Remote WebAuthn in CRD. A request in Chrome on the host goes to the
+client, and the client's Chrome runs it against the key with the site's
+original origin. The response goes back the same way. Compare with
+Fig.~\ref{fig:flow}, where the key itself is forwarded.}
+\label{fig:crd}
+\end{figure*}
+
+\subsection{The host side}
+
+Chrome on the host must have the \term{Chrome Remote Desktop Security Key
+Extension}~\cite{crdext}. It uses the \code{webAuthenticationProxy}
+extension API~\cite{wap}. When a CRD session starts, the CRD host writes a
+file into a directory that Chrome watches. The extension then calls
+\code{attach()}, and from that time Chrome sends every WebAuthn call to the
+extension, not to local keys~\cite{crdhost} (verified). The extension passes
+each request through native messaging to the program
+\code{remote-webauthn}. That program passes it through Mojo IPC to the CRD
+host process. The host sends it to the client over a WebRTC data channel
+named \code{remote-webauthn}. There are four operations: create, get,
+cancel, and a check for a platform authenticator. The request bodies are the
+WebAuthn options as JSON~\cite{crdhost} (verified).
+
+The CRD host turns this on for every host, by default; no policy is
+needed~\cite{crdhost} (verified). Two conditions apply. On Linux,
+\code{remote-webauthn} accepts only a caller that is Google Chrome from
+\code{/opt/google/chrome}, not Chromium. And the CRD host does not install
+the extension: an administrator must force-install it by policy, or the
+user installs it~\cite{crdhost} (verified).
+
+\subsection{The client side}
+
+The CRD client is a web page. It calls WebAuthn in its own Chrome, and adds
+the site's origin from the host in the extension \code{remoteClientDataJSON}
+(earlier: \code{remoteDesktopClientOverride})~\cite{webauthn-ed} (verified).
+Chrome then runs the ceremony as if the remote site had called it, with the
+remote site's RP ID. The key signs client data that names the remote site,
+so the site accepts the response.
+
+This extension lets one page act for any site, so Chrome allows it only in
+two cases~\cite{crdclient} (verified):
+\begin{itemize}
+\item The profile is \term{affiliated}, and the page's origin is in the
+      policy \code{WebAuthentication}\allowbreak\code{RemoteDesktop}\allowbreak\code{AllowedOrigins}
+      (Chrome~136 and later)~\cite{crdallow}. Affiliated means that the
+      same organization manages the user and the device or browser.
+\item A Google-internal policy is set, and the page is Google's internal
+      CRD client. The source says that this case ``explicitly does not
+      cover external instances of CRD''~\cite{crdclient}.
+\end{itemize}
+A personal \code{@gmail.com} account is not affiliated, so the first case
+cannot apply to it. That is why this study built \code{ffwd-usbfs}.
+
+\subsection{What a managed organization must configure}
+
+Table~\ref{tab:crd} lists the settings for a Linux host and a Chromebook
+client. One public report says that it works on ChromeOS from Chrome~147,
+and that the Admin console has the setting since about
+2026-07-14~\cite{iwadev}; we did not verify this against Google's own
+documentation.
+
+\begin{table}[t]
+\centering
+\caption{Settings for remote WebAuthn in CRD}
+\label{tab:crd}
+\scriptsize
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{9mm}>{\raggedright\arraybackslash}p{52mm}>{\raggedright\arraybackslash}p{14mm}@{}}
+\toprule
+Where & Setting & Status \\
+\midrule
+Client & Chromebook enrolled in the organization that manages the user, so the profile is affiliated & Verified \\
+Client & Admin console: the policy \code{WebAuthentication}\allowbreak\code{RemoteDesktop}\allowbreak\code{AllowedOrigins} lists the CRD client, \code{https://}\allowbreak\code{remotedesktop.google.com} & Policy verified; value assumed \\
+Host & Google Chrome, not Chromium & Verified \\
+Host & Force-install the CRD Security Key Extension (\code{ExtensionInstallForcelist}) & Verified \\
+Host & CRD host: nothing to set; on by default & Verified \\
+Google & The public CRD client speaks \code{remote-webauthn} & Unknown \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{pitfall}[The open question]
+We could not verify that Google's public CRD client implements the
+\code{remote-webauthn} channel. Its code is not public. The extension's store
+text names only Google's internal client, and its manifest lets only
+internal pages message it~\cite{crdext} (verified). An administrator can test
+it in a few minutes: set the policies of Table~\ref{tab:crd}, open
+\code{webauthn.io} in the CRD session, and authenticate. If the prompt
+appears on the Chromebook, the path works.
+\end{pitfall}
+
+\subsection{Compared with \code{ffwd-usbfs}}
+
+\begin{itemize}
+\item \textbf{Simpler and safer to run.} No Linux container, no
+      \code{sudo}, no setuid sink, and no \code{uhid}. The key never leaves
+      ChromeOS.
+\item \textbf{WebAuthn only.} It serves web sites in the host's Chrome.
+      SSH keys of type \code{sk}, OpenPGP and PIV on the host do not use
+      Chrome, so they are not covered. Approach D still serves those.
+\item \textbf{Same trust problem.} The client must trust the origin that the
+      host reports, so a compromised host can ask for an assertion for any
+      site. The specification says so~\cite{webauthn-ed}, and that is why
+      Chrome allows it only by policy. The relay has the same weakness
+      (Section~\ref{sec:security}).
+\item \textbf{Depends on Google.} It needs a managed account, Google Chrome,
+      and Google's closed CRD client.
+\end{itemize}
+
+\subsection{The older security key channel}
+
+CRD has a second, older channel, \code{security-key}. It carries SSH agent
+messages, not WebAuthn, and gives the session a socket in
+\code{SSH\_AUTH\_SOCK}~\cite{crdgnubby} (verified). The policy
+\code{RemoteAccessHostAllowGnubbyAuth} controls it; the policy is
+internal to Google, and the client side is not public~\cite{crdpol}.
