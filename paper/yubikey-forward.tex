@@ -165,6 +165,7 @@ SSH, remote desktop, security keys
 % IEEEtran: \appendices starts the appendix sections (A, B, ...).
 \appendices
 \input{sections/11_appendix_yubikey.tex}
+\input{sections/12_appendix_crd.tex}
 
 % =====================================================================
 \begin{thebibliography}{30}
@@ -239,6 +240,27 @@ SSH, remote desktop, security keys
   and ``com.apple.developer.hid.virtual.device,'' developer documentation.
 \bibitem{termina} ChromiumOS kernel, \code{chromeos/config/termina/base.config}, chromeos-6.6, commit c3031f3e.
 \bibitem{usbip-deb} Debian, package \code{usbip}, trixie. \url{https://packages.debian.org/trixie/usbip}
+\bibitem{crdhost} Chromium source, commit \code{2b88984cf66d}, directory
+  \code{remoting/host/webauthn/} and \code{remoting/host/remoting\_me2me\_host.cc}.
+  File and line references are in \code{research/G-crd-remote-webauthn.md}.
+\bibitem{crdclient} Chromium source, commit \code{2b88984cf66d},
+  \code{chrome\_web\_authentication\_delegate\_base.cc} in
+  \code{chrome/browser/webauthn/}, and the affiliation check in
+  \code{chrome/browser/enterprise/util/}. Lines are in
+  \code{research/G-crd-remote-webauthn.md}.
+\bibitem{crdallow} Chromium, policy definition
+  \code{WebAuthentication}\allowbreak\code{RemoteDesktop}\allowbreak\code{AllowedOrigins}.
+  \url{https://chromium.googlesource.com/chromium/src/+/main/components/policy/resources/templates/policy_definitions/Miscellaneous/WebAuthenticationRemoteDesktopAllowedOrigins.yaml}
+\bibitem{crdext} Chrome Web Store, ``Chrome Remote Desktop Security Key Extension,''
+  ID \code{djjmngfglakhkhmgcfdmjalogilepkhd}, version 1.16, read 2026-11-10.
+\bibitem{webauthn-ed} W3C, ``Web Authentication,'' Editor's Draft, extension
+  \code{remoteClientDataJSON} and its security considerations, read 2026-11-10.
+  \url{https://github.com/w3c/webauthn/blob/main/index.bs}
+\bibitem{iwadev} Chromium \code{iwa-dev} mailing list, thread \code{oLOI\_Qoj7x4}, June to July 2026.
+  \url{https://groups.google.com/a/chromium.org/g/iwa-dev/c/oLOI_Qoj7x4}
+\bibitem{crdgnubby} Chromium source, commit \code{2b88984cf66d},
+  \code{remoting/proto/security\_key.proto} and
+  \code{remoting/host/linux/shared\_lib.py}.
 \end{thebibliography}
 
 \end{document}
