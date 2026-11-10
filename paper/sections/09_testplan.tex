@@ -33,7 +33,7 @@ all, and they take about ten minutes. The probe needs no installation in
 \code{penguin}, because Bazel builds it as a static binary.
 
 \begin{lstlisting}[style=shell,caption={Tests T0 to T2},label={lst:probe},float=tb]
-# build host, in the workspace (pick the Chromebook's architecture)
+# build host, in the workspace; pick the Chromebook's CPU
 bazel build //cmd/fido-probe \
   --@rules_go//go/config:pure \
   --platforms=@rules_go//go/toolchain:linux_amd64

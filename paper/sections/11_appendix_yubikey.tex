@@ -1,0 +1,146 @@
+% SPDX-License-Identifier: Apache-2.0
+\section{How a YubiKey works}
+\label{app:yubikey}
+
+This appendix explains the parts of a YubiKey that the study depends on.
+It covers the YubiKey 5 series. Older models differ in details.
+
+\subsection{One device, several applications}
+
+A YubiKey holds several independent applications. Each one has its own keys,
+its own PIN or password, and its own reset. Resetting the FIDO application
+does not touch the PIV keys, and the reverse. Each application is reached
+through one of the three USB interfaces in Table~\ref{tab:interfaces}.
+Table~\ref{tab:apps} lists the applications.
+
+\begin{table}[t]
+\centering
+\caption{YubiKey 5 applications}
+\label{tab:apps}
+\scriptsize
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{13mm}>{\raggedright\arraybackslash}p{9mm}>{\raggedright\arraybackslash}p{24mm}>{\raggedright\arraybackslash}p{24mm}@{}}
+\toprule
+Application & USB interface & What it stores & How it proves \\
+\midrule
+FIDO U2F and FIDO2 & FIDO HID & a master key; discoverable credentials & signs a challenge after a touch \\
+Yubico OTP & OTP HID (keyboard) & an AES-128 key and counters & types a 44-character one-time password \\
+PIV & CCID & up to 24 key slots with certificates & signs or decrypts after a PIN \\
+OpenPGP & CCID & signature, encryption and authentication keys & signs, decrypts or authenticates after a PIN \\
+OATH & CCID & TOTP and HOTP secrets & computes a code for an app on the host \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The keys are made inside the YubiKey, and the device has no command that
+exports a private key. A host can only ask the key to use a private key, for
+example to sign. This is the reason why approach~C cannot work: a virtual
+authenticator on the remote host cannot borrow the real key's private keys.
+
+\subsection{FIDO credentials}
+
+A FIDO credential is a key pair for one site, the \term{relying party}.
+WebAuthn defines two operations~\cite{webauthn3}. Figure~\ref{fig:webauthn}
+shows them.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[font=\scriptsize]
+  \node[sbox,minimum width=14mm] (rp) at (0,0) {Site};
+  \node[sbox,minimum width=14mm] (br) at (2.7,0) {Browser};
+  \node[mem,minimum width=14mm] (yk) at (5.9,0) {YubiKey};
+  \foreach \n in {rp,br,yk} \draw[black!30] (\n.south) -- ++(0,-5.35);
+  \draw[fl] (0,-0.75) -- node[above]{challenge, RP ID} (2.7,-0.75);
+  \draw[fl] (2.7,-1.35) -- node[above]{makeCredential} (5.9,-1.35);
+  \node[warnb,font=\tiny,minimum height=4mm,inner sep=1.5pt] at (5.9,-1.85) {touch};
+  \draw[fl] (5.9,-2.35) -- node[below]{public key, credential ID} (2.7,-2.35);
+  \draw[fl] (2.7,-2.95) -- node[above]{signed response} (0,-2.95);
+  \draw[densely dotted] (-0.6,-3.3) -- (6.6,-3.3);
+  \node[anchor=west,font=\tiny] at (-0.6,-3.45) {later: login};
+  \draw[fl] (2.7,-4.0) -- node[above]{getAssertion} (5.9,-4.0);
+  \node[warnb,font=\tiny,minimum height=4mm,inner sep=1.5pt] at (5.9,-4.5) {touch};
+  \draw[fl] (5.9,-5.0) -- node[below]{signature} (2.7,-5.0);
+\end{tikzpicture}
+\caption{Registration (top) and login (bottom). The browser sends the
+challenge and the RP ID to the key; the key signs only after a touch.}
+\label{fig:webauthn}
+\end{figure}
+
+\paragraph{Registration} The browser sends \code{makeCredential} with the
+site's RP ID, a hash of the client data (which holds the site's challenge
+and origin), and the user. After a touch, the key makes a new key pair. It
+returns the public key and a \term{credential ID}, signed with its
+attestation key.
+
+\paragraph{Login} The browser sends \code{getAssertion} with the RP ID, a
+new client data hash, and the credential IDs that the site knows. After a
+touch, the key signs the authenticator data and the client data hash with
+the credential's private key. The authenticator data holds a hash of the RP
+ID, flags for user presence and user verification, and a signature counter.
+
+\paragraph{Where the private key lives} A YubiKey makes a new key pair for
+each registration. For a \term{non-discoverable} credential, it encrypts the
+private key and some metadata with a master key that is unique to that
+YubiKey and never leaves it. The result is the credential ID, which the site
+stores~\cite{yk-keygen} (verified, firmware 4.4 and later). At login, the
+site sends the credential ID back, and only the same YubiKey can decrypt it.
+Such credentials therefore use no storage on the key. A
+\term{discoverable} credential, also called a resident key or a passkey, is
+stored on the key with the site's user handle, so a login needs no user
+name~\cite{yk-resident} (verified). The key has room for a limited number of
+these.
+
+\paragraph{Presence and verification} A touch proves \term{user presence}: a
+person is at the key. A PIN proves \term{user verification}: the right person
+is at the key. The PIN is checked by the key itself, not by the host. Both
+flags are part of the signed data, so the site can check them.
+
+\paragraph{Why a phishing site gets no usable signature} The signed
+data contains a hash of the RP ID, and the client data contains the origin.
+A phishing site with a different name gets a signature that the real site
+rejects. The browser chooses the RP ID. That is the reason why a relay that
+trusts a compromised remote browser cannot stop phishing
+(Section~\ref{sec:security}).
+
+\subsection{Yubico OTP}
+
+The OTP application acts as a USB keyboard. A touch makes it type a
+44-character password~\cite{yk-otp} (verified). The first 12 characters are
+the key's public ID, and they never change. The other 32 characters are
+fields encrypted with the key's AES-128 key. The fields include a usage
+counter and a session counter, so a server rejects a password that was used
+before. The characters come from a small alphabet, called modhex, that types
+the same on most keyboard layouts. The OTP application is not a goal of
+this study.
+
+\subsection{PIV}
+
+PIV is a smart card standard from the US government. A YubiKey 4 or 5 has 24
+PIV slots, and each holds a private key and an X.509
+certificate~\cite{yk-piv} (verified). Four slots have defined uses:
+\begin{itemize}
+\item 9a, authentication: for example system login. One PIN entry permits
+      many operations.
+\item 9c, digital signature: the PIN is needed before every signature.
+\item 9d, key management: decryption, for example of e-mail.
+\item 9e, card authentication: for example physical access.
+\end{itemize}
+The PIN policy can be changed, and a slot can also ask for a touch. Hosts
+reach PIV through the CCID interface, with PC/SC and a PKCS\#11 module. This
+is the path that p11-kit forwards in approach~D.
+
+\subsection{OpenPGP}
+
+The OpenPGP application is an OpenPGP smart card~\cite{yk-pgp}. It holds up
+to three keys: one to sign, one to decrypt, and one to authenticate. GnuPG
+uses it through \code{scdaemon} and the CCID interface. A forwarded
+gpg-agent lets a remote host ask for a signature, while the PIN entry and the
+touch stay on the Chromebook (approach~D).
+
+\subsection{What this means for forwarding}
+
+Each application sits on one USB interface. A relay that forwards one
+interface forwards only the applications behind it. The recommended relay
+forwards the FIDO interface, so a compromised remote host can use FIDO
+credentials while the relay runs, and nothing else. USB/IP forwards all
+three interfaces, so the remote host can also use, or reset, the PIV and
+OpenPGP applications and change the OTP configuration.
