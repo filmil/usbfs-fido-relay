@@ -277,4 +277,4 @@ Fill in one row for each test.
 | T4 | | | | |
 | T5 | | | | |
 | T6 | | | | |
-| T7 | | | | |
+| T7 | 2026-11-09 | same | **Pass**, no replug: after the switch was turned off, Chrome on the Chromebook reached the YubiKey and read its capabilities | Done without `ffwd-usbfs` (after the probe, which attaches the driver again). webauthn.io sign-in with an empty user name: Chrome said the key "can't be used with this site", which needs the key's capabilities; no credential was created. Repeat after T4. |

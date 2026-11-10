@@ -206,7 +206,7 @@ A later version can use asynchronous URBs (`USBDEVFS_SUBMITURB`, `USBDEVFS_REAPU
 | Q5 | Does the round trip over SSH stay well below Chrome's 20 s device timeout during a touch? | T5 |
 | Q6 | Can pcscd claim the CCID interface while the relay holds the FIDO interface? | T6 |
 | Q7 | Does Chrome in the CRD session get read and write access to the virtual hidraw node? | T4 |
-| Q8 | Does the key come back to ChromeOS when you stop sharing it, with no replug? | T7 |
+| Q8 | Does the key come back to ChromeOS when you stop sharing it, with no replug? | T7: **yes** after the probe (2026-11-09); repeat after T4 |
 | Q9 | Does the Smart Card Connector app need to be off? | T1 |
 
 ## 9. Workspace
