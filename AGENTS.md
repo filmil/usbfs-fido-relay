@@ -10,7 +10,7 @@ The ones that matter most here:
   Every tool comes from `MODULE.bazel`: the Go SDK from `rules_go`, a C toolchain from `hermetic_cc_toolchain`.
   Run Go commands as `bazel run @rules_go//go -- ARGS`, never with a host `go`.
   Regenerate BUILD files with `bazel run //:gazelle`; format them with `bazel run //:buildifier`.
-* **The paper** is `paper/`, an IEEEtran two-column document built by `rules_latex_host` (`bazel build //paper:yubikey-forward`).
+* **The paper** is `paper/`, an IEEEtran two-column document built by `rules_latex_host` (`bazel build //paper:usbfs-fido-relay`).
   It follows the `latex-pdf-tutorial` skill: one file per section, TikZ diagrams, Latin Modern fonts (no Times), no Type 3 fonts.
   After a change to a figure or a table, render the pages and look at them (the skill's occlusion pass).
 * **Prose.** Simplified technical English (ASD-STE100): short sentences, active voice.

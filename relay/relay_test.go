@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/filmil/yubikey-forward/ctaphid"
+	"github.com/filmil/usbfs-fido-relay/ctaphid"
 )
 
 // fakeKey records what the relay writes and answers from a queue.

@@ -7,7 +7,7 @@ go_library(
         "main.go",
         "privileges.go",
     ],
-    importpath = "github.com/filmil/yubikey-forward/cmd/ffwd-usbfs",
+    importpath = "github.com/filmil/usbfs-fido-relay/cmd/ffwd-usbfs",
     visibility = ["//visibility:private"],
     deps = [
         "//ctaphid",

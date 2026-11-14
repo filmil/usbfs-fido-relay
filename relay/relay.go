@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/filmil/yubikey-forward/ctaphid"
+	"github.com/filmil/usbfs-fido-relay/ctaphid"
 )
 
 // Marker is the 5-byte greeting of fido-forward's wire protocol v1.

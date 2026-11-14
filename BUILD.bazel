@@ -2,7 +2,7 @@
 load("@buildifier_prebuilt//:rules.bzl", "buildifier")
 load("@gazelle//:def.bzl", "gazelle")
 
-# gazelle:prefix github.com/filmil/yubikey-forward
+# gazelle:prefix github.com/filmil/usbfs-fido-relay
 gazelle(name = "gazelle")
 
 buildifier(name = "buildifier")
