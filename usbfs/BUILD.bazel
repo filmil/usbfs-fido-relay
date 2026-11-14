@@ -8,7 +8,7 @@ go_library(
         "device.go",
         "fido.go",
     ],
-    importpath = "github.com/filmil/yubikey-forward/usbfs",
+    importpath = "github.com/filmil/usbfs-fido-relay/usbfs",
     visibility = ["//visibility:public"],
     deps = ["@org_golang_x_sys//unix"],
 )

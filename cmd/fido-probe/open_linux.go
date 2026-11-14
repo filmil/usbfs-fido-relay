@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/filmil/yubikey-forward/usbfs"
+	"github.com/filmil/usbfs-fido-relay/usbfs"
 )
 
 // usbfsTransport talks to the FIDO interface through the key's usbfs node.

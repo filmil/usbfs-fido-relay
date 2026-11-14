@@ -1,14 +1,19 @@
-[![test](https://github.com/filmil/yubikey-forward/actions/workflows/test.yml/badge.svg)](https://github.com/filmil/yubikey-forward/actions/workflows/test.yml)
-[![release](https://github.com/filmil/yubikey-forward/actions/workflows/release.yml/badge.svg)](https://github.com/filmil/yubikey-forward/actions/workflows/release.yml)
+[![test](https://github.com/filmil/usbfs-fido-relay/actions/workflows/test.yml/badge.svg)](https://github.com/filmil/usbfs-fido-relay/actions/workflows/test.yml)
+[![release](https://github.com/filmil/usbfs-fido-relay/actions/workflows/release.yml/badge.svg)](https://github.com/filmil/usbfs-fido-relay/actions/workflows/release.yml)
 
-# yubikey-forward
+# usbfs-fido-relay
 
-A design study: use a YubiKey on a Chromebook (in the Crostini Linux container) from a remote Linux host.
+Use a FIDO security key that is plugged into a Chromebook from a remote Linux host, over SSH.
+`ffwd-usbfs` reads the key through its raw USB node, the only way in from the Chromebook's Linux container (Crostini), and relays it to [fido-forward](https://github.com/txomon/fido-forward)'s sink, which makes a virtual key on the remote host.
+Tested with a YubiKey 5.
+
+The repository started as a design study, and it still holds the study.
+YubiKey is a trademark of Yubico AB; this project is not affiliated with Yubico.
 
 * [DESIGN.md](DESIGN.md): the approaches, the comparison, the recommendation, and the open questions.
 * [TESTPLAN.md](TESTPLAN.md): the tests to run on the real Chromebook and the remote host.
 * [research/](research/): the raw research notes, with sources.
-* [paper/](paper/): the same study as an IEEE two-column paper; build it with `bazel build //paper:yubikey-forward`.
+* [paper/](paper/): the same study as an IEEE two-column paper; build it with `bazel build //paper:usbfs-fido-relay`.
 
 ## Status and safety
 
@@ -46,7 +51,7 @@ bazel test //...
 
 * `fido-probe`, a read-only check of the key, for Linux (amd64, arm64) and macOS (amd64, arm64), as `//cmd/fido-probe:fido-probe_<platform>`;
 * `ffwd-usbfs`, the relay that forwards the key over SSH to fido-forward's sink, for Linux (amd64, arm64), as `//cmd/ffwd-usbfs:ffwd-usbfs_<platform>`;
-* the paper, as `//paper:yubikey-forward`.
+* the paper, as `//paper:usbfs-fido-relay`.
 
 Bazel provides the Go SDK, the C toolchain and a TeX distribution (TinyTeX); nothing comes from the host.
 

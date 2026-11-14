@@ -1,4 +1,4 @@
-module github.com/filmil/yubikey-forward
+module github.com/filmil/usbfs-fido-relay
 
 go 1.27
 

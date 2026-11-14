@@ -23,9 +23,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/filmil/yubikey-forward/ctaphid"
-	"github.com/filmil/yubikey-forward/relay"
-	"github.com/filmil/yubikey-forward/usbfs"
+	"github.com/filmil/usbfs-fido-relay/ctaphid"
+	"github.com/filmil/usbfs-fido-relay/relay"
+	"github.com/filmil/usbfs-fido-relay/usbfs"
 )
 
 // keyIO adapts the usbfs key to relay.Key: a read that times out

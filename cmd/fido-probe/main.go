@@ -22,7 +22,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/filmil/yubikey-forward/ctaphid"
+	"github.com/filmil/usbfs-fido-relay/ctaphid"
 )
 
 // transport moves 64-byte CTAPHID reports to and from the key.

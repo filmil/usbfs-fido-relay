@@ -3,7 +3,7 @@ load("@rules_latex_host//latex:defs.bzl", "latex_document")
 
 # The design study as an IEEE two-column paper.
 latex_document(
-    name = "yubikey-forward",
-    main = "yubikey-forward.tex",
+    name = "usbfs-fido-relay",
+    main = "usbfs-fido-relay.tex",
     deps = glob(["sections/*.tex"]),
 )

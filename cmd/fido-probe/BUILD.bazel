@@ -8,7 +8,7 @@ go_library(
         "open_darwin.go",
         "open_linux.go",
     ],
-    importpath = "github.com/filmil/yubikey-forward/cmd/fido-probe",
+    importpath = "github.com/filmil/usbfs-fido-relay/cmd/fido-probe",
     visibility = ["//visibility:private"],
     deps = [
         "//ctaphid",
